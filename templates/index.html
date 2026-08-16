@@ -210,19 +210,55 @@
   .btn.primary{background:var(--ink); color:var(--paper-raised); border-color:var(--ink);}
   .btn:hover{border-color:var(--ink);}
 
-  /* ---------- Admin drawer ---------- */
-  details.admin{margin-top:26px; border:1px dashed var(--rule-strong); border-radius:var(--radius); background:var(--paper-raised);}
-  details.admin summary{
-    cursor:pointer; padding:12px 16px; font-size:12.5px; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--ink-soft); font-weight:600;
+  /* ---------- Add-student panel ---------- */
+  .tab.tab-add{
+    border-style:dashed; color:var(--ink-soft); background:transparent;
   }
-  .admin-body{padding:4px 16px 18px; display:grid; gap:16px;}
-  @media(min-width:680px){.admin-body{grid-template-columns:1fr 1fr;}}
-  .admin-block h4{font-family:'Fraunces',serif; font-size:14.5px; margin:0 0 10px;}
-  .admin-block .field{margin-bottom:10px;}
-  .admin-msg{font-size:12.5px; margin-top:8px;}
-  .admin-msg.ok{color:var(--good);}
-  .admin-msg.err{color:var(--alert);}
+  .tab.tab-add:hover{border-style:solid; color:var(--ink);}
+  .add-panel{
+    display:none; background:var(--paper-raised); border:1px solid var(--rule-strong); border-radius:var(--radius);
+    padding:16px; margin:-6px 0 16px; max-width:420px;
+  }
+  .add-panel.open{display:block;}
+  .add-panel h4{font-family:'Fraunces',serif; font-size:14.5px; margin:0 0 12px;}
+  .add-panel .field{margin-bottom:10px;}
+  .panel-msg{font-size:12.5px; margin-top:8px;}
+  .panel-msg.ok{color:var(--good);}
+  .panel-msg.err{color:var(--alert);}
+
+  /* ---------- Enter-marks tab + form ---------- */
+  .tab.tab-entry{
+    border-color:var(--good); color:var(--good); font-weight:600;
+  }
+  .tab.tab-entry:hover{background:var(--good); color:var(--paper-raised); border-color:var(--good);}
+  .tab.tab-entry.active{background:var(--good); color:var(--paper-raised); border-color:var(--good);}
+
+  .entry-card{
+    background:var(--paper-raised); border:1px solid var(--rule-strong); border-radius:var(--radius);
+    padding:22px;
+  }
+  .entry-card h2{font-family:'Fraunces',serif; font-weight:560; font-size:18px; margin:0 0 4px;}
+  .entry-card .entry-sub{font-size:13px; color:var(--ink-soft); margin:0 0 20px;}
+  .entry-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:16px;}
+  @media(min-width:560px){.entry-grid{grid-template-columns:repeat(4,1fr);}}
+  .entry-grid .field{margin-bottom:0;}
+  .entry-grid label{
+    display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .entry-grid input{
+    width:100%; padding:11px 12px; border:1px solid var(--rule-strong); border-radius:var(--radius);
+    background:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:17px; color:var(--ink);
+    font-weight:600; text-align:center;
+  }
+  .entry-grid input:focus{border-color:var(--good);}
+  .entry-grid .field.test-no input{color:var(--ink-soft); font-weight:500;}
+  .entry-actions{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .btn.entry-submit{background:var(--good); border-color:var(--good); color:var(--paper-raised); padding:11px 22px; font-weight:600;}
+  .btn.entry-submit:hover{opacity:.92;}
+  .entry-msg{font-size:13px;}
+  .entry-msg.ok{color:var(--good);}
+  .entry-msg.err{color:var(--alert);}
 
   footer.note{margin-top:22px; font-size:11.5px; color:var(--ink-faint); text-align:center;}
 </style>
@@ -242,36 +278,23 @@
   </header>
 
   <div class="tabbar" id="studentTabs"></div>
+  <div class="add-panel" id="addStudentPanel">
+    <h4>Add student</h4>
+    <div class="field"><label>Student ID</label><input id="ns-id" placeholder="Enter student ID here" /></div>
+    <div class="field"><label>Name</label><input id="ns-name" placeholder="Enter student name here" /></div>
+    <button class="btn primary" id="ns-submit">Add student</button>
+    <div class="panel-msg" id="ns-msg"></div>
+  </div>
+
   <div class="tabbar subjects" id="subjectTabs">
     <button class="tab active" data-subject="physics">Physics</button>
     <button class="tab" data-subject="chemistry">Chemistry</button>
     <button class="tab" data-subject="maths">Maths</button>
     <button class="tab" data-subject="consolidated">Consolidated</button>
+    <button class="tab tab-entry" data-mode="entry">+ Enter marks</button>
   </div>
 
   <div id="content"></div>
-
-  <details class="admin">
-    <summary>Add student / record a score</summary>
-    <div class="admin-body">
-      <div class="admin-block">
-        <h4>New student</h4>
-        <div class="field"><label>Student ID</label><input id="ns-id" placeholder="Enter student ID here" /></div>
-        <div class="field"><label>Name</label><input id="ns-name" placeholder="Enter student name here" /></div>
-        <button class="btn primary" id="ns-submit">Add student</button>
-        <div class="admin-msg" id="ns-msg"></div>
-      </div>
-      <div class="admin-block">
-        <h4>Record a score</h4>
-        <div class="field"><label>Student ID</label><input id="sc-student" placeholder="Enter student ID here" /></div>
-        <div class="field"><label>Test no.</label><input id="sc-testno" type="number" min="1" placeholder="Enter test number here" /></div>
-        <div class="field"><label>Subject</label><input id="sc-subject" placeholder="physics / chemistry / maths / consolidated" /></div>
-        <div class="field"><label>Marks</label><input id="sc-marks" type="number" step="any" placeholder="Enter marks here" /></div>
-        <button class="btn primary" id="sc-submit">Save score</button>
-        <div class="admin-msg" id="sc-msg"></div>
-      </div>
-    </div>
-  </details>
 
   <footer class="note">Data is read from the mock‑test tracker API. Use the gear icon to point this page at your deployment.</footer>
 </div>
@@ -279,14 +302,10 @@
 <div class="overlay" id="settingsOverlay">
   <div class="modal">
     <h3>Connection settings</h3>
-    <p class="hint">Point this page at your API, and optionally store a write key so the forms below can save data.</p>
-    <div class="field">
-      <label>API base URL</label>
-      <input id="cfg-base" placeholder="https://your-app.example.com (leave blank if same origin)" />
-    </div>
+    <p class="hint">Store your write key so score entries and new students can be saved.</p>
     <div class="field">
       <label>Write key (X‑API‑Key)</label>
-      <input id="cfg-key" placeholder="only needed to add students / scores" />
+      <input id="cfg-key" placeholder="Enter your API write key here" />
     </div>
     <div class="modal-actions">
       <button class="btn" id="cfg-cancel">Cancel</button>
@@ -304,10 +323,10 @@
 
   const state = {
     apiBase: localStorage.getItem("jee_api_base") || "",
-    writeKey: localStorage.getItem("jee_write_key") || "",
     students: [],
     currentStudent: null,
     currentSubject: "physics",
+    viewMode: "scores", // "scores" | "entry"
   };
 
   const el = (id) => document.getElementById(id);
@@ -326,10 +345,7 @@
   async function apiPost(path, payload){
     const res = await fetch(apiUrl(path), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": state.writeKey,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const body = await res.json().catch(() => ({}));
@@ -340,16 +356,13 @@
   // ---------------- Settings modal ----------------
   el("settingsBtn").addEventListener("click", () => {
     el("cfg-base").value = state.apiBase;
-    el("cfg-key").value = state.writeKey;
     el("settingsOverlay").classList.add("open");
   });
   el("cfg-cancel").addEventListener("click", () => el("settingsOverlay").classList.remove("open"));
   el("settingsOverlay").addEventListener("click", (e) => { if(e.target.id === "settingsOverlay") el("settingsOverlay").classList.remove("open"); });
   el("cfg-save").addEventListener("click", () => {
     state.apiBase = el("cfg-base").value.trim().replace(/\/$/, "");
-    state.writeKey = el("cfg-key").value.trim();
     localStorage.setItem("jee_api_base", state.apiBase);
-    localStorage.setItem("jee_write_key", state.writeKey);
     el("settingsOverlay").classList.remove("open");
     loadStudents();
   });
@@ -365,14 +378,22 @@
       if(students.length){
         state.currentStudent = state.currentStudent && students.some(s => s.id === state.currentStudent)
           ? state.currentStudent : students[0].id;
-        loadScores();
+        refreshView();
       } else {
         state.currentStudent = null;
-        renderEmpty("No students yet", "Add a student below to start tracking their mock‑test marks.");
+        renderEmpty("No students yet", "Use \u201c+ Add student\u201d above the tabs to start tracking marks.");
       }
     } catch(err){
       container.innerHTML = "";
       renderError("Could not load students", err.message);
+    }
+  }
+
+  function refreshView(){
+    if(state.viewMode === "entry"){
+      renderEntryForm();
+    } else {
+      loadScores();
     }
   }
 
@@ -386,20 +407,33 @@
       btn.addEventListener("click", () => {
         state.currentStudent = s.id;
         renderStudentTabs();
-        loadScores();
+        refreshView();
       });
       container.appendChild(btn);
     });
+    const addBtn = document.createElement("button");
+    addBtn.className = "tab tab-add";
+    addBtn.textContent = "+ Add student";
+    addBtn.addEventListener("click", () => {
+      el("addStudentPanel").classList.toggle("open");
+    });
+    container.appendChild(addBtn);
   }
 
-  // ---------------- Subjects ----------------
+  // ---------------- Subjects / entry mode ----------------
   el("subjectTabs").addEventListener("click", (e) => {
     const btn = e.target.closest(".tab");
     if(!btn) return;
     document.querySelectorAll("#subjectTabs .tab").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
-    state.currentSubject = btn.dataset.subject;
-    loadScores();
+    if(btn.dataset.mode === "entry"){
+      state.viewMode = "entry";
+      renderEntryForm();
+    } else {
+      state.viewMode = "scores";
+      state.currentSubject = btn.dataset.subject;
+      loadScores();
+    }
   });
 
   // ---------------- Scores / rendering ----------------
@@ -571,46 +605,125 @@
     return card;
   }
 
-  // ---------------- Admin forms ----------------
+  // ---------------- Add student panel ----------------
   el("ns-submit").addEventListener("click", async () => {
     const msg = el("ns-msg");
-    msg.textContent = ""; msg.className = "admin-msg";
+    msg.textContent = ""; msg.className = "panel-msg";
     const id = el("ns-id").value.trim(), name = el("ns-name").value.trim();
-    if(!id || !name){ msg.textContent = "Enter both an ID and a name."; msg.className = "admin-msg err"; return; }
+    if(!id || !name){ msg.textContent = "Enter both an ID and a name."; msg.className = "panel-msg err"; return; }
     try{
       await apiPost("/api/students", { id, name });
       msg.textContent = "Added " + name + ".";
-      msg.className = "admin-msg ok";
+      msg.className = "panel-msg ok";
       el("ns-id").value = ""; el("ns-name").value = "";
+      state.currentStudent = id;
       loadStudents();
     } catch(err){
       msg.textContent = err.message;
-      msg.className = "admin-msg err";
+      msg.className = "panel-msg err";
     }
   });
 
-  el("sc-submit").addEventListener("click", async () => {
-    const msg = el("sc-msg");
-    msg.textContent = ""; msg.className = "admin-msg";
-    const student = el("sc-student").value.trim();
-    const test_no = el("sc-testno").value.trim();
-    const subject = el("sc-subject").value.trim().toLowerCase();
-    const marks = el("sc-marks").value.trim();
-    if(!student || !test_no || !subject || !marks){
-      msg.textContent = "Fill in student, test number, subject and marks.";
-      msg.className = "admin-msg err";
+  // ---------------- Enter marks (all three subjects at once) ----------------
+  async function suggestNextTestNo(studentId){
+    try{
+      const rows = await apiGet("/api/scores?student=" + encodeURIComponent(studentId) + "&subject=consolidated");
+      const testRows = rows.filter(r => !r.cumulative);
+      if(!testRows.length) return 1;
+      return Math.max(...testRows.map(r => r.test_no)) + 1;
+    } catch(err){
+      return "";
+    }
+  }
+
+  async function renderEntryForm(){
+    const content = el("content");
+    if(!state.currentStudent){
+      renderEmpty("No student selected", "Use \u201c+ Add student\u201d above the tabs, then come back to enter marks.");
       return;
     }
+    const student = state.students.find(s => s.id === state.currentStudent);
+    content.innerHTML = '<div class="state"><h3>Setting up entry form…</h3></div>';
+    const nextTest = await suggestNextTestNo(state.currentStudent);
+
+    const card = document.createElement("div");
+    card.className = "entry-card";
+    card.innerHTML =
+      '<h2>Enter marks — ' + escapeHtml(student ? student.name : state.currentStudent) + '</h2>' +
+      '<p class="entry-sub">One test at a time. Fill in Physics, Chemistry and Maths together — the consolidated total is worked out automatically.</p>' +
+      '<div class="entry-grid">' +
+        '<div class="field test-no"><label>Test no.</label><input id="em-testno" type="number" min="1" value="' + (nextTest || "") + '" /></div>' +
+        '<div class="field"><label>Physics</label><input id="em-physics" type="number" step="any" min="0" placeholder="0–100" /></div>' +
+        '<div class="field"><label>Chemistry</label><input id="em-chemistry" type="number" step="any" min="0" placeholder="0–100" /></div>' +
+        '<div class="field"><label>Maths</label><input id="em-maths" type="number" step="any" min="0" placeholder="0–100" /></div>' +
+      '</div>' +
+      '<div class="entry-grid" style="grid-template-columns:1fr; max-width:200px;">' +
+        '<div class="field"><label>Rank (optional)</label><input id="em-rank" type="number" step="any" min="0" placeholder="Optional" /></div>' +
+      '</div>' +
+      '<div class="entry-actions">' +
+        '<button class="btn entry-submit" id="em-submit">Save this test</button>' +
+        '<span class="entry-msg" id="em-msg"></span>' +
+      '</div>';
+
+    content.innerHTML = "";
+    content.appendChild(card);
+    el("em-physics").focus();
+
+    el("em-submit").addEventListener("click", submitEntry);
+  }
+
+  async function submitEntry(){
+    const msg = el("em-msg");
+    msg.textContent = ""; msg.className = "entry-msg";
+
+    const testNo = el("em-testno").value.trim();
+    const physics = el("em-physics").value.trim();
+    const chemistry = el("em-chemistry").value.trim();
+    const maths = el("em-maths").value.trim();
+    const rank = el("em-rank").value.trim();
+
+    if(!testNo || physics === "" || chemistry === "" || maths === ""){
+      msg.textContent = "Fill in the test number and all three subjects.";
+      msg.className = "entry-msg err";
+      return;
+    }
+
+    const submitBtn = el("em-submit");
+    submitBtn.disabled = true;
+    msg.textContent = "Saving…";
+    msg.className = "entry-msg";
+
     try{
-      await apiPost("/api/scores", { student, test_no: Number(test_no), subject, marks: Number(marks) });
-      msg.textContent = "Saved test " + test_no + " (" + subject + ") for " + student + ".";
-      msg.className = "admin-msg ok";
-      if(student === state.currentStudent && subject === state.currentSubject) loadScores();
+      const subjects = [
+        { subject: "physics", marks: physics },
+        { subject: "chemistry", marks: chemistry },
+        { subject: "maths", marks: maths },
+      ];
+      for(let i = 0; i < subjects.length; i++){
+        const payload = {
+          student: state.currentStudent,
+          test_no: Number(testNo),
+          subject: subjects[i].subject,
+          marks: Number(subjects[i].marks),
+        };
+        if(rank !== "" && i === subjects.length - 1) payload.rank = Number(rank);
+        await apiPost("/api/scores", payload);
+      }
+      msg.textContent = "Saved test " + testNo + ".";
+      msg.className = "entry-msg ok";
+      el("em-testno").value = Number(testNo) + 1;
+      el("em-physics").value = "";
+      el("em-chemistry").value = "";
+      el("em-maths").value = "";
+      el("em-rank").value = "";
+      el("em-physics").focus();
     } catch(err){
       msg.textContent = err.message;
-      msg.className = "admin-msg err";
+      msg.className = "entry-msg err";
+    } finally {
+      submitBtn.disabled = false;
     }
-  });
+  }
 
   // ---------------- Init ----------------
   loadStudents();
