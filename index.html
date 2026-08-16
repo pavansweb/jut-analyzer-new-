@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JEE Mock Test Marks Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#0E1B26;
+    --ink-soft:#4B5A66;
+    --paper:#EEF3F3;
+    --paper-line:rgba(14,27,38,0.07);
+    --card:#FFFFFF;
+    --border:#D8E0E0;
+    --physics:#3A6EA5;
+    --physics-bg:#E9F0F8;
+    --chemistry:#3F8F6B;
+    --chemistry-bg:#E9F5EF;
+    --maths:#C4682B;
+    --maths-bg:#FBEEE3;
+    --consolidated:#7A5C9E;
+    --consolidated-bg:#F1EBF6;
+    --good:#2E8B57;
+    --bad:#C0392B;
+    --accent: var(--physics);
+    --accent-bg: var(--physics-bg);
+    --radius:10px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/100% 28px,
+      var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+
+  /* ---------- Top bar 1 : students ---------- */
+  .studentbar{
+    background:var(--ink);
+    padding:14px 24px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+  }
+  .brand{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:16px;
+    color:#fff;
+    letter-spacing:0.02em;
+    margin-right:8px;
+    white-space:nowrap;
+  }
+  .brand span{color:#8FB4DC;}
+  .student-tabs{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .student-tab{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    color:#B9C6D0;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.12);
+    padding:7px 14px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .student-tab:hover{background:rgba(255,255,255,0.12);color:#fff;}
+  .student-tab.active{
+    background:#fff;
+    color:var(--ink);
+    border-color:#fff;
+    font-weight:600;
+  }
+  .student-status{
+    margin-left:auto;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:#7C8B96;
+  }
+
+  /* ---------- Top bar 2 : subject "index tabs" ---------- */
+  .subjectbar{
+    display:flex;
+    gap:6px;
+    padding:18px 24px 0 24px;
+  }
+  .subject-tab{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    padding:10px 20px 12px 20px;
+    cursor:pointer;
+    border:none;
+    color:var(--ink-soft);
+    background:#DCE4E4;
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    margin-right:-6px;
+    position:relative;
+    top:4px;
+    transition:top .12s ease, background .12s ease, color .12s ease;
+  }
+  .subject-tab:hover{top:1px;}
+  .subject-tab.active{
+    top:0;
+    color:#fff;
+    z-index:2;
+  }
+  .subject-tab[data-subject="physics"].active{background:var(--physics);}
+  .subject-tab[data-subject="chemistry"].active{background:var(--chemistry);}
+  .subject-tab[data-subject="maths"].active{background:var(--maths);}
+  .subject-tab[data-subject="consolidated"].active{background:var(--consolidated);}
+
+  /* ---------- Content ---------- */
+  .content{
+    background:var(--card);
+    border-top:4px solid var(--accent);
+    padding:28px 24px 40px 24px;
+  }
+
+  .stat-strip{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:24px;
+  }
+  .stat-card{
+    background:var(--accent-bg);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px 16px;
+  }
+  .stat-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .stat-value{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:24px;
+    font-weight:700;
+    color:var(--accent);
+  }
+  .stat-sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px;
+    margin-bottom:22px;
+  }
+  .card h2{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--ink-soft);
+    margin:0 0 14px 0;
+  }
+  .chart-wrap{position:relative;height:320px;}
+
+  /* ---------- Table ---------- */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+  }
+  thead th{
+    position:sticky;
+    top:0;
+    background:var(--ink);
+    color:#fff;
+    text-align:left;
+    padding:10px 12px;
+    font-weight:500;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+  }
+  thead th.num, td.num{text-align:right;}
+  tbody tr.test-row:nth-child(even){background:#F7F9F9;}
+  tbody tr.test-row td{
+    padding:8px 12px;
+    border-bottom:1px solid var(--border);
+  }
+  tbody tr.test-row:hover{background:var(--accent-bg);}
+
+  tbody tr.cum-row td{
+    padding:10px 12px;
+    background:var(--ink);
+    color:#fff;
+    font-weight:600;
+    border-left:4px solid var(--accent);
+  }
+  tbody tr.cum-row td.cum-label{
+    font-family:'Space Grotesk',sans-serif;
+    letter-spacing:0.03em;
+  }
+
+  .pct-bar-wrap{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .pct-bar-track{
+    flex:1;
+    height:6px;
+    background:var(--border);
+    border-radius:4px;
+    overflow:hidden;
+    min-width:60px;
+  }
+  .pct-bar-fill{
+    height:100%;
+    background:var(--accent);
+  }
+  .trend-up{color:var(--good);}
+  .trend-down{color:var(--bad);}
+  .trend-flat{color:var(--ink-soft);}
+
+  .table-scroll{max-height:520px;overflow:auto;border:1px solid var(--border);border-radius:8px;}
+
+  .empty-state{
+    padding:40px 20px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+  }
+  .empty-state strong{display:block;color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:15px;margin-bottom:6px;}
+
+  @media (max-width:720px){
+    .stat-strip{grid-template-columns:repeat(2,1fr);}
+    .subject-tab{padding:9px 12px 10px 12px;font-size:11px;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="studentbar">
+    <div class="brand">JEE<span>ANALYSER</span></div>
+    <div class="student-tabs" id="studentTabs">
+      <!-- populated from /api/students -->
+    </div>
+    <div class="student-status" id="studentStatus">loading students…</div>
+  </div>
+
+  <div class="subjectbar" id="subjectTabs">
+    <button class="subject-tab active" data-subject="physics">Physics</button>
+    <button class="subject-tab" data-subject="chemistry">Chemistry</button>
+    <button class="subject-tab" data-subject="maths">Maths</button>
+    <button class="subject-tab" data-subject="consolidated">Consolidated</button>
+  </div>
+
+  <div class="content" id="content">
+
+    <div class="stat-strip" id="statStrip">
+      <div class="stat-card">
+        <div class="stat-label">Latest score</div>
+        <div class="stat-value" id="statLatest">–</div>
+        <div class="stat-sub" id="statLatestSub">&nbsp;</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Average</div>
+        <div class="stat-value" id="statAvg">–</div>
+        <div class="stat-sub" id="statAvgSub">&nbsp;</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best score</div>
+        <div class="stat-value" id="statBest">–</div>
+        <div class="stat-sub" id="statBestSub">&nbsp;</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Tests recorded</div>
+        <div class="stat-value" id="statCount">–</div>
+        <div class="stat-sub" id="statCountSub">&nbsp;</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 id="chartTitle">Marks trend</h2>
+      <div class="chart-wrap"><canvas id="marksChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2 id="tableTitle">Test-wise scorecard</h2>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Test</th>
+              <th>Date</th>
+              <th class="num">Marks</th>
+              <th class="num">Max</th>
+              <th>Percentage</th>
+              <th>Trend</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="6" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+const ACCENTS = {
+  physics:      { color:'#3A6EA5', bg:'#E9F0F8' },
+  chemistry:    { color:'#3F8F6B', bg:'#E9F5EF' },
+  maths:        { color:'#C4682B', bg:'#FBEEE3' },
+  consolidated: { color:'#7A5C9E', bg:'#F1EBF6' }
+};
+
+let state = {
+  students: [],
+  currentStudent: null,
+  currentSubject: 'physics',
+  chart: null
+};
+
+const studentTabsEl = document.getElementById('studentTabs');
+const studentStatusEl = document.getElementById('studentStatus');
+const subjectTabsEl = document.getElementById('subjectTabs');
+const tableBodyEl = document.getElementById('tableBody');
+const chartTitleEl = document.getElementById('chartTitle');
+const tableTitleEl = document.getElementById('tableTitle');
+
+function setAccent(subject){
+  const a = ACCENTS[subject];
+  document.documentElement.style.setProperty('--accent', a.color);
+  document.documentElement.style.setProperty('--accent-bg', a.bg);
+}
+
+function subjectLabel(subject){
+  return subject.charAt(0).toUpperCase() + subject.slice(1);
+}
+
+// ---------- Load students: GET /api/students ----------
+async function loadStudents(){
+  try{
+    const res = await fetch('/api/students');
+    if(!res.ok) throw new Error('bad response');
+    const data = await res.json(); // expected: [{ "id": "name1", "name": "Name One" }, ...]
+    state.students = data;
+    studentTabsEl.innerHTML = '';
+    data.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'student-tab' + (i === 0 ? ' active' : '');
+      btn.textContent = s.name;
+      btn.dataset.id = s.id;
+      btn.addEventListener('click', () => selectStudent(s.id, btn));
+      studentTabsEl.appendChild(btn);
+    });
+    studentStatusEl.textContent = data.length + ' student(s)';
+    if(data.length){
+      state.currentStudent = data[0].id;
+      loadScores();
+    } else {
+      renderEmpty('No students found. Add students in your Flask backend.');
+    }
+  }catch(err){
+    studentStatusEl.textContent = 'backend not reachable';
+    renderEmpty('Could not reach /api/students. Make sure your Flask backend is running.');
+  }
+}
+
+function selectStudent(id, btnEl){
+  state.currentStudent = id;
+  [...studentTabsEl.children].forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+  loadScores();
+}
+
+// ---------- Subject tabs ----------
+subjectTabsEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.subject-tab');
+  if(!btn) return;
+  [...subjectTabsEl.children].forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.currentSubject = btn.dataset.subject;
+  setAccent(state.currentSubject);
+  loadScores();
+});
+setAccent(state.currentSubject);
+
+// ---------- Load scores: GET /api/scores?student=<id>&subject=<subject> ----------
+async function loadScores(){
+  if(!state.currentStudent) return;
+  tableBodyEl.innerHTML = '<tr><td colspan="6" class="empty-state">Loading…</td></tr>';
+  const label = subjectLabel(state.currentSubject);
+  chartTitleEl.textContent = label + ' — marks trend';
+  tableTitleEl.textContent = label + ' — test-wise scorecard';
+
+  try{
+    const url = `/api/scores?student=${encodeURIComponent(state.currentStudent)}&subject=${encodeURIComponent(state.currentSubject)}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('bad response');
+    const entries = await res.json();
+    /* expected shape, array of entries in test-number order, e.g.:
+       { "test_no": 1, "date": "2026-01-05", "marks": 187, "max_marks": 300, "cumulative": false }
+       { "test_no": 10, "cumulative": true, "avg_marks": 172.4, "avg_percentage": 57.5, "tests_covered": "1-10" }
+       A cumulative entry is inserted after every 10th test.
+    */
+    renderStats(entries);
+    renderChart(entries);
+    renderTable(entries);
+  }catch(err){
+    renderEmpty('Could not reach /api/scores for this student/subject.');
+  }
+}
+
+function renderEmpty(msg){
+  tableBodyEl.innerHTML = `<tr><td colspan="6"><div class="empty-state"><strong>No data yet</strong>${msg}</div></td></tr>`;
+  if(state.chart){ state.chart.destroy(); state.chart = null; }
+  ['statLatest','statAvg','statBest','statCount'].forEach(id => document.getElementById(id).textContent = '–');
+  ['statLatestSub','statAvgSub','statBestSub','statCountSub'].forEach(id => document.getElementById(id).innerHTML = '&nbsp;');
+}
+
+function renderStats(entries){
+  const tests = entries.filter(e => !e.cumulative);
+  if(!tests.length){ renderEmpty('No test scores in this dataset.'); return; }
+  const latest = tests[tests.length - 1];
+  const best = tests.reduce((a,b) => (b.marks > a.marks ? b : a));
+  const avgMarks = tests.reduce((s,t) => s + t.marks, 0) / tests.length;
+  const avgMax = tests.reduce((s,t) => s + t.max_marks, 0) / tests.length;
+
+  document.getElementById('statLatest').textContent = `${latest.marks}/${latest.max_marks}`;
+  document.getElementById('statLatestSub').textContent = `Test ${latest.test_no} · ${pct(latest.marks, latest.max_marks)}%`;
+
+  document.getElementById('statAvg').textContent = avgMarks.toFixed(1);
+  document.getElementById('statAvgSub').textContent = `avg ${pct(avgMarks, avgMax)}%`;
+
+  document.getElementById('statBest').textContent = `${best.marks}/${best.max_marks}`;
+  document.getElementById('statBestSub').textContent = `Test ${best.test_no}`;
+
+  document.getElementById('statCount').textContent = tests.length;
+  document.getElementById('statCountSub').textContent = `of 60 tests`;
+}
+
+function pct(marks, max){
+  if(!max) return '0.0';
+  return ((marks / max) * 100).toFixed(1);
+}
+
+function renderChart(entries){
+  const tests = entries.filter(e => !e.cumulative);
+  const labels = tests.map(t => 'T' + t.test_no);
+  const marksData = tests.map(t => t.marks);
+
+  // sparse cumulative-average overlay aligned to test_no positions
+  const cumByTestNo = {};
+  entries.filter(e => e.cumulative).forEach(c => cumByTestNo[c.test_no] = c.avg_marks);
+  const cumData = tests.map(t => (cumByTestNo[t.test_no] !== undefined ? cumByTestNo[t.test_no] : null));
+
+  const accent = ACCENTS[state.currentSubject].color;
+
+  if(state.chart) state.chart.destroy();
+  const ctx = document.getElementById('marksChart').getContext('2d');
+  state.chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Marks',
+          data: marksData,
+          borderColor: accent,
+          backgroundColor: accent + '22',
+          pointRadius: 3,
+          pointBackgroundColor: accent,
+          tension: 0.25,
+          fill: true,
+          spanGaps: true
+        },
+        {
+          label: '10-test average',
+          data: cumData,
+          borderColor: '#0E1B26',
+          borderDash: [5,4],
+          pointRadius: 5,
+          pointStyle: 'rectRot',
+          pointBackgroundColor: '#0E1B26',
+          showLine: false,
+          spanGaps: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { font: { family: 'Inter', size: 12 } } }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#E4EAEA' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderTable(entries){
+  tableBodyEl.innerHTML = '';
+  let prevMarks = null;
+
+  entries.forEach(e => {
+    if(e.cumulative){
+      const tr = document.createElement('tr');
+      tr.className = 'cum-row';
+      tr.innerHTML = `
+        <td class="cum-label" colspan="4">10-TEST AVERAGE (Tests ${e.tests_covered || ''})</td>
+        <td colspan="2">${e.avg_marks?.toFixed(1) ?? '–'} avg &nbsp;·&nbsp; ${e.avg_percentage?.toFixed(1) ?? '–'}%</td>
+      `;
+      tableBodyEl.appendChild(tr);
+      return;
+    }
+
+    const p = parseFloat(pct(e.marks, e.max_marks));
+    let trendHtml = '<span class="trend-flat">–</span>';
+    if(prevMarks !== null){
+      if(e.marks > prevMarks) trendHtml = '<span class="trend-up">▲</span>';
+      else if(e.marks < prevMarks) trendHtml = '<span class="trend-down">▼</span>';
+    }
+    prevMarks = e.marks;
+
+    const tr = document.createElement('tr');
+    tr.className = 'test-row';
+    tr.innerHTML = `
+      <td>Test ${e.test_no}</td>
+      <td>${e.date || '—'}</td>
+      <td class="num">${e.marks}</td>
+      <td class="num">${e.max_marks}</td>
+      <td>
+        <div class="pct-bar-wrap">
+          <span>${p}%</span>
+          <div class="pct-bar-track"><div class="pct-bar-fill" style="width:${p}%"></div></div>
+        </div>
+      </td>
+      <td>${trendHtml}</td>
+    `;
+    tableBodyEl.appendChild(tr);
+  });
+}
+
+loadStudents();
+</script>
+
+<!--
+=====================================================================
+FLASK BACKEND — ROUTES NEEDED
+=====================================================================
+
+1) GET /api/students
+   Purpose : list every student tracked, populates the top student bar.
+   Response: JSON array of objects:
+     [
+       { "id": "name1", "name": "Name One" },
+       { "id": "name2", "name": "Name Two" }
+     ]
+   Notes   : "id" is whatever unique key you use to look scores up by
+             (roll number, slug, db id...). "name" is the display label.
+
+2) GET /api/scores?student=<id>&subject=<physics|chemistry|maths|consolidated>
+   Purpose : all 60 test scores for one student + one subject (or the
+             consolidated/overall total), in test-number order, with a
+             cumulative summary row inserted after every 10th test.
+   Response: JSON array, each item is ONE of the two shapes below.
+
+   a) a normal test entry:
+     {
+       "test_no": 1,
+       "date": "2026-01-05",
+       "marks": 187,
+       "max_marks": 300,
+       "cumulative": false
+     }
+
+   b) a cumulative checkpoint entry (insert one after test_no 10, 20,
+      30, 40, 50 and 60 — 6 total per student/subject):
+     {
+       "test_no": 10,
+       "cumulative": true,
+       "avg_marks": 172.4,
+       "avg_percentage": 57.5,
+       "tests_covered": "1-10"
+     }
+
+   Notes   : for subject="consolidated", max_marks would typically be
+             300 (physics+chem+maths combined) instead of 100.
+             marks/max_marks can be floats if you use partial marking.
+
+=====================================================================
+OPTIONAL / NICE-TO-HAVE ROUTES (not called by this page yet)
+=====================================================================
+
+3) POST /api/students
+   Purpose : add a new student. Body: { "id": "...", "name": "..." }
+
+4) POST /api/scores
+   Purpose : add/update a single test's marks for a student+subject.
+   Body    : { "student": "name1", "subject": "physics", "test_no": 15,
+               "date": "2026-03-10", "marks": 78, "max_marks": 100 }
+
+5) GET /api/tests
+   Purpose : shared metadata about the 60 tests (date, syllabus/topic,
+               max marks) if it's the same across all students — lets
+               you avoid repeating that info per student in /api/scores.
+=====================================================================
+-->
+</body>
+</html>
