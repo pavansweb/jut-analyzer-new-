@@ -159,21 +159,26 @@
     border-bottom:2px solid var(--ink);
   }
   .table-scroll{overflow-x:auto;}
+  .table-columns{display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));}
+  .table-col + .table-col{border-left:1px solid var(--rule-strong);}
+  @media(max-width:700px){
+    .table-columns{grid-template-columns:1fr;}
+    .table-col + .table-col{border-left:none; border-top:1px solid var(--rule-strong);}
+  }
   table{width:100%; border-collapse:collapse; font-family:'IBM Plex Mono', monospace; font-size:13.5px;}
   thead th{
-    position:sticky; top:0; background:var(--paper-raised);
     text-align:left; padding:9px 14px; font-size:11px; letter-spacing:.06em;
     text-transform:uppercase; color:var(--ink-soft); border-bottom:1px solid var(--rule-strong);
     font-family:'IBM Plex Sans',sans-serif; font-weight:600;
   }
   thead th.num, td.num{text-align:right;}
-  tbody td{padding:8px 14px; border-bottom:1px solid var(--rule); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  tbody td{padding:7px 14px; border-bottom:1px solid var(--rule); font-variant-numeric:tabular-nums; white-space:nowrap;}
   tbody tr:hover td{background:rgba(27,42,65,.035);}
   tbody tr.milestone-row td{
     background:var(--milestone-bg); border-top:1px solid var(--milestone); border-bottom:1px solid var(--milestone);
-    color:#5C4611; font-weight:600;
+    color:#5C4611; font-weight:600; white-space:normal;
   }
-  tbody tr.milestone-row td.ms-label{font-family:'Fraunces',serif; font-style:italic; font-weight:560;}
+  tbody tr.milestone-row td.ms-label{font-family:'Fraunces',serif; font-style:italic; font-weight:560; font-size:12.5px;}
   td.pct-good{color:var(--good); font-weight:600;}
   td.pct-bad{color:var(--alert); font-weight:600;}
 
@@ -296,7 +301,7 @@
 
   <div id="content"></div>
 
-  <footer class="note">Data is read from the mock‑test tracker API. Use the gear icon to point this page at your deployment.</footer>
+  <footer class="note">Use the gear icon to store your API write key so score entries save correctly.</footer>
 </div>
 
 <div class="overlay" id="settingsOverlay">
@@ -305,7 +310,7 @@
     <p class="hint">Store your write key so score entries and new students can be saved.</p>
     <div class="field">
       <label>Write key (X‑API‑Key)</label>
-      <input id="cfg-key" placeholder="Enter your API write key here" />
+      <input id="cfg-key" type="password" placeholder="Enter your API write key here" />
     </div>
     <div class="modal-actions">
       <button class="btn" id="cfg-cancel">Cancel</button>
@@ -322,7 +327,7 @@
   const SUBJECT_LABEL = { physics:"Physics", chemistry:"Chemistry", maths:"Maths", consolidated:"Consolidated" };
 
   const state = {
-    apiBase: localStorage.getItem("jee_api_base") || "",
+    writeKey: localStorage.getItem("jee_write_key") || "",
     students: [],
     currentStudent: null,
     currentSubject: "physics",
@@ -332,7 +337,7 @@
   const el = (id) => document.getElementById(id);
 
   function apiUrl(path){
-    return (state.apiBase || "") + path;
+    return path;
   }
 
   async function apiGet(path){
@@ -345,7 +350,10 @@
   async function apiPost(path, payload){
     const res = await fetch(apiUrl(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": state.writeKey,
+      },
       body: JSON.stringify(payload),
     });
     const body = await res.json().catch(() => ({}));
@@ -355,14 +363,14 @@
 
   // ---------------- Settings modal ----------------
   el("settingsBtn").addEventListener("click", () => {
-    el("cfg-base").value = state.apiBase;
+    el("cfg-key").value = state.writeKey;
     el("settingsOverlay").classList.add("open");
   });
   el("cfg-cancel").addEventListener("click", () => el("settingsOverlay").classList.remove("open"));
   el("settingsOverlay").addEventListener("click", (e) => { if(e.target.id === "settingsOverlay") el("settingsOverlay").classList.remove("open"); });
   el("cfg-save").addEventListener("click", () => {
-    state.apiBase = el("cfg-base").value.trim().replace(/\/$/, "");
-    localStorage.setItem("jee_api_base", state.apiBase);
+    state.writeKey = el("cfg-key").value.trim();
+    localStorage.setItem("jee_write_key", state.writeKey);
     el("settingsOverlay").classList.remove("open");
     loadStudents();
   });
@@ -579,29 +587,43 @@
   function buildTable(rows){
     const card = document.createElement("div");
     card.className = "table-card";
-    const showRank = state.currentSubject === "consolidated";
+    const showRank = state.currentSubject === "consolidated" && rows.some(r => !r.cumulative && r.rank != null);
+    const colSpan = showRank ? 3 : 2;
 
-    let thead = "<tr><th>Test</th><th class='num'>Marks</th>";
-    if(showRank) thead += "<th class='num'>Rank</th>";
-    thead += "</tr>";
+    function renderColumn(chunk){
+      let thead = "<tr><th>Test</th><th class='num'>Marks</th>";
+      if(showRank) thead += "<th class='num'>Rank</th>";
+      thead += "</tr>";
 
-    let tbody = "";
-    rows.forEach(r => {
-      if(r.cumulative){
-        tbody += '<tr class="milestone-row"><td class="ms-label" colspan="' + (showRank?3:2) + '">' +
-          '10‑test average · tests ' + r.tests_covered + ' — ' +
-          r.avg_marks + ' marks avg</td></tr>';
-      } else {
-        tbody += "<tr><td>" + r.test_no + "</td>" +
-          "<td class='num'>" + r.marks + "</td>";
-        if(showRank) tbody += "<td class='num'>" + (r.rank != null ? r.rank : "—") + "</td>";
-        tbody += "</tr>";
-      }
-    });
+      let tbody = "";
+      chunk.forEach(r => {
+        if(r.cumulative){
+          tbody += '<tr class="milestone-row"><td class="ms-label" colspan="' + colSpan + '">' +
+            'Avg (' + r.tests_covered + ') — ' + r.avg_marks + '</td></tr>';
+        } else {
+          tbody += "<tr><td>" + r.test_no + "</td>" +
+            "<td class='num'>" + r.marks + "</td>";
+          if(showRank) tbody += "<td class='num'>" + (r.rank != null ? r.rank : "—") + "</td>";
+          tbody += "</tr>";
+        }
+      });
+
+      return '<div class="table-col"><table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+    }
+
+    // Split into adjacent columns of ~18 rows each (max 3 columns) so the
+    // list reads left-to-right, top-to-bottom instead of one long scroll.
+    const targetRowsPerCol = 18;
+    const colCount = Math.min(3, Math.max(1, Math.ceil(rows.length / targetRowsPerCol)));
+    const chunkSize = Math.ceil(rows.length / colCount);
+    let columnsHtml = "";
+    for(let i = 0; i < rows.length; i += chunkSize){
+      columnsHtml += renderColumn(rows.slice(i, i + chunkSize));
+    }
 
     card.innerHTML =
       '<h2>' + SUBJECT_LABEL[state.currentSubject] + ' — test‑wise marks</h2>' +
-      '<div class="table-scroll"><table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+      '<div class="table-columns">' + columnsHtml + '</div>';
     return card;
   }
 
