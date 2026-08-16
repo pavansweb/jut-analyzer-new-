@@ -1,230 +1,626 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JEE Mock Test Marks Analyser</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>JEE Mock Analyser</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231B2A41'/%3E%3Ctext x='32' y='40' font-size='22' font-family='Georgia,serif' fill='%23EFF1EC' text-anchor='middle'%3EJ%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,560;9..144,680&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0e1b26;--soft:#4b5a66;--paper:#eef3f3;--card:#fff;--border:#d8e0e0;--accent:#3a6ea5;--accentbg:#e9f0f8;--good:#2e8b57;--bad:#c0392b}
-*{box-sizing:border-box}html,body{margin:0}body{background:linear-gradient(rgba(14,27,38,.07) 1px,transparent 1px) 0 0/100% 28px,var(--paper);color:var(--ink);font-family:Inter,Arial,sans-serif}
-button,input{font:inherit}.top{background:var(--ink);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}.brand{font-size:16px;font-weight:800}.brand span{color:#8fb4dc}.students{display:flex;gap:8px;flex-wrap:wrap}.student{border:1px solid #ffffff22;background:#ffffff10;color:#bdc8d0;border-radius:20px;padding:7px 14px;cursor:pointer}.student.active{background:#fff;color:var(--ink)}.status{margin-left:auto;font-size:12px;color:#9eabb4}
-.tabs{display:flex;gap:6px;padding:18px 20px 0}.tab{border:0;padding:10px 18px;background:#dce4e4;cursor:pointer;font-weight:700}.tab.active{background:var(--accent);color:#fff}
-main{background:var(--card);border-top:4px solid var(--accent);padding:24px 20px 40px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.stat{background:var(--accentbg);border:1px solid var(--border);border-radius:10px;padding:14px}.label{font-size:11px;color:var(--soft);text-transform:uppercase}.value{font-size:24px;font-weight:800;color:var(--accent);margin-top:5px}.sub{font-size:11px;color:var(--soft);margin-top:2px}
-.card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}.card h2{font-size:14px;margin:0 0 14px;text-transform:uppercase;color:var(--soft)}.chart{height:320px}
-.scroll{max-height:520px;overflow:auto;border:1px solid var(--border);border-radius:8px}table{width:100%;border-collapse:collapse;font-family:monospace;font-size:13px}th{position:sticky;top:0;background:var(--ink);color:#fff;text-align:left;padding:10px}td{padding:9px 10px;border-bottom:1px solid var(--border)}td.num,th.num{text-align:right}.cum td{background:var(--ink);color:#fff;font-weight:bold}.bar{height:6px;background:var(--border);border-radius:5px;overflow:hidden}.fill{height:100%;background:var(--accent)}.empty{text-align:center;padding:35px;color:var(--soft)}
-.entry{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.entry label{font-size:11px;color:var(--soft);font-weight:700}.entry input{width:100%;margin-top:5px;border:1px solid var(--border);border-radius:7px;padding:10px;background:#fff}.actions{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}.primary,.secondary{border:0;border-radius:7px;padding:10px 16px;cursor:pointer;font-weight:700}.primary{background:var(--accent);color:#fff}.secondary{background:#e8eeee;color:var(--ink)}.message{font-size:12px;color:var(--soft)}.danger{color:var(--bad)}.ok{color:var(--good)}
-@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}.entry{grid-template-columns:repeat(2,1fr)}.chart{height:260px}.tab{padding:9px 11px;font-size:11px}.top{padding:12px}.status{margin-left:0;width:100%}}
+  :root{
+    --paper:#EFF1EA;
+    --paper-raised:#F7F8F3;
+    --ink:#1B2A41;
+    --ink-soft:#51607A;
+    --ink-faint:#8A93A6;
+    --rule:#CBD1C4;
+    --rule-strong:#A9B0A0;
+    --good:#2F7A52;
+    --alert:#B8442E;
+    --milestone:#B4841F;
+    --milestone-bg:#F4E9CF;
+    --focus:#1B2A41;
+    --radius:3px;
+    --shadow:0 1px 0 rgba(27,42,65,.06);
+    font-size:16px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--rule) 1px, transparent 1px) 0 0/100% 32px,
+      var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+
+  a{color:inherit;}
+  button{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+
+  .wrap{max-width:1080px; margin:0 auto; padding:28px 20px 80px;}
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:16px; padding-bottom:18px; border-bottom:2px solid var(--ink);
+    margin-bottom:22px;
+  }
+  .brand{display:flex; gap:14px; align-items:center;}
+  .seal{
+    width:46px; height:46px; border-radius:50%;
+    background:var(--ink); color:var(--paper-raised);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-size:19px; font-weight:680;
+    flex:none;
+  }
+  .brand h1{
+    font-family:'Fraunces', serif; font-weight:680; font-size:clamp(22px,3.4vw,30px);
+    margin:0; letter-spacing:-.01em;
+  }
+  .brand .sub{
+    font-size:12.5px; color:var(--ink-soft); letter-spacing:.06em; text-transform:uppercase;
+    margin-top:3px;
+  }
+  .gear-btn{
+    background:none; border:1px solid var(--rule-strong); color:var(--ink-soft);
+    width:38px; height:38px; border-radius:50%; cursor:pointer; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .gear-btn:hover{border-color:var(--ink); color:var(--ink);}
+
+  /* ---------- Tab bars ---------- */
+  .tabbar{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; margin-bottom:14px;
+    scrollbar-width:thin;
+  }
+  .tabbar::-webkit-scrollbar{height:5px;}
+  .tabbar::-webkit-scrollbar-thumb{background:var(--rule-strong); border-radius:4px;}
+
+  .tab{
+    flex:none; cursor:pointer; background:var(--paper-raised);
+    border:1px solid var(--rule-strong); color:var(--ink-soft);
+    padding:8px 16px; font-size:14px; font-weight:500;
+    border-radius:var(--radius); white-space:nowrap;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .tab:hover{color:var(--ink); border-color:var(--ink);}
+  .tab.active{
+    background:var(--ink); color:var(--paper-raised); border-color:var(--ink);
+  }
+
+  .tabbar.subjects .tab{
+    font-family:'Fraunces', serif; font-weight:560; font-size:15px;
+  }
+
+  /* ---------- Stat strip ---------- */
+  .stats{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    background:var(--rule-strong); border:1px solid var(--rule-strong);
+    margin-bottom:22px; border-radius:var(--radius); overflow:hidden;
+  }
+  .stat{background:var(--paper-raised); padding:14px 16px;}
+  .stat .label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint);
+    margin-bottom:6px;
+  }
+  .stat .value{
+    font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600;
+    font-variant-numeric:tabular-nums;
+  }
+  .stat .value.trend-up{color:var(--good);}
+  .stat .value.trend-down{color:var(--alert);}
+  @media (max-width:640px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+  }
+
+  /* ---------- Chart ---------- */
+  .chart-card{
+    background:var(--paper-raised); border:1px solid var(--rule-strong);
+    border-radius:var(--radius); padding:18px 18px 6px; margin-bottom:26px;
+  }
+  .chart-card h2{
+    font-family:'Fraunces',serif; font-weight:560; font-size:16px; margin:0 0 10px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .chart-card h2 .legend{
+    font-family:'IBM Plex Sans',sans-serif; font-weight:400; font-size:11.5px; color:var(--ink-soft);
+    display:flex; gap:14px; text-transform:none; letter-spacing:0;
+  }
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .legend i{width:10px; height:10px; display:inline-block; border-radius:50%;}
+  .legend i.line{background:var(--ink);}
+  .legend i.checkpoint{background:var(--milestone); transform:rotate(45deg); border-radius:2px;}
+  svg.chart{width:100%; height:auto; display:block;}
+  .chart text{font-family:'IBM Plex Mono', monospace;}
+  .grid-line{stroke:var(--rule); stroke-width:1;}
+  .axis-line{stroke:var(--rule-strong); stroke-width:1;}
+  .data-line{fill:none; stroke:var(--ink); stroke-width:2;}
+  .data-dot{fill:var(--paper-raised); stroke:var(--ink); stroke-width:2;}
+  .checkpoint-dot{fill:var(--milestone);}
+  .axis-label{fill:var(--ink-faint); font-size:10px;}
+  .avg-tick text{fill:var(--milestone); font-size:9.5px; font-weight:600;}
+
+  /* ---------- Table ---------- */
+  .table-card{
+    background:var(--paper-raised); border:1px solid var(--rule-strong); border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .table-card h2{
+    font-family:'Fraunces',serif; font-weight:560; font-size:16px; margin:0; padding:16px 18px 12px;
+    border-bottom:2px solid var(--ink);
+  }
+  .table-scroll{overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; font-family:'IBM Plex Mono', monospace; font-size:13.5px;}
+  thead th{
+    position:sticky; top:0; background:var(--paper-raised);
+    text-align:left; padding:9px 14px; font-size:11px; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--ink-soft); border-bottom:1px solid var(--rule-strong);
+    font-family:'IBM Plex Sans',sans-serif; font-weight:600;
+  }
+  thead th.num, td.num{text-align:right;}
+  tbody td{padding:8px 14px; border-bottom:1px solid var(--rule); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  tbody tr:hover td{background:rgba(27,42,65,.035);}
+  tbody tr.milestone-row td{
+    background:var(--milestone-bg); border-top:1px solid var(--milestone); border-bottom:1px solid var(--milestone);
+    color:#5C4611; font-weight:600;
+  }
+  tbody tr.milestone-row td.ms-label{font-family:'Fraunces',serif; font-style:italic; font-weight:560;}
+  td.pct-good{color:var(--good); font-weight:600;}
+  td.pct-bad{color:var(--alert); font-weight:600;}
+
+  /* ---------- States ---------- */
+  .state{padding:60px 20px; text-align:center; color:var(--ink-soft);}
+  .state h3{font-family:'Fraunces',serif; font-weight:560; color:var(--ink); margin:0 0 8px; font-size:18px;}
+  .state p{margin:0; font-size:14px; max-width:420px; margin:0 auto;}
+  .state.error h3{color:var(--alert);}
+
+  /* ---------- Settings modal ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(27,42,65,.35); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--paper-raised); border:1px solid var(--rule-strong); border-radius:6px;
+    width:100%; max-width:440px; padding:22px 22px 20px; box-shadow:0 12px 32px rgba(27,42,65,.25);
+  }
+  .modal h3{font-family:'Fraunces',serif; margin:0 0 4px; font-size:19px;}
+  .modal p.hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:5px;}
+  .field input{
+    width:100%; padding:9px 11px; border:1px solid var(--rule-strong); border-radius:var(--radius);
+    background:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:13.5px; color:var(--ink);
+  }
+  .field input:focus{border-color:var(--ink);}
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
+  .btn{
+    padding:9px 16px; border-radius:var(--radius); font-size:13.5px; cursor:pointer; font-weight:500;
+    border:1px solid var(--rule-strong); background:var(--paper-raised); color:var(--ink);
+  }
+  .btn.primary{background:var(--ink); color:var(--paper-raised); border-color:var(--ink);}
+  .btn:hover{border-color:var(--ink);}
+
+  /* ---------- Admin drawer ---------- */
+  details.admin{margin-top:26px; border:1px dashed var(--rule-strong); border-radius:var(--radius); background:var(--paper-raised);}
+  details.admin summary{
+    cursor:pointer; padding:12px 16px; font-size:12.5px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink-soft); font-weight:600;
+  }
+  .admin-body{padding:4px 16px 18px; display:grid; gap:16px;}
+  @media(min-width:680px){.admin-body{grid-template-columns:1fr 1fr;}}
+  .admin-block h4{font-family:'Fraunces',serif; font-size:14.5px; margin:0 0 10px;}
+  .admin-block .field{margin-bottom:10px;}
+  .admin-msg{font-size:12.5px; margin-top:8px;}
+  .admin-msg.ok{color:var(--good);}
+  .admin-msg.err{color:var(--alert);}
+
+  footer.note{margin-top:22px; font-size:11.5px; color:var(--ink-faint); text-align:center;}
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="brand">JEE<span>ANALYSER</span></div>
-  <div class="students" id="students"></div>
-  <div class="status" id="status">connecting…</div>
-</header>
 
-<nav class="tabs" id="tabs">
-  <button class="tab active" data-subject="physics">Physics</button>
-  <button class="tab" data-subject="chemistry">Chemistry</button>
-  <button class="tab" data-subject="maths">Maths</button>
-  <button class="tab" data-subject="consolidated">Consolidated</button>
-</nav>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="seal">J</div>
+      <div>
+        <h1>JEE Mock Analyser</h1>
+        <div class="sub">Test‑by‑test marks, tracked across 60 mocks</div>
+      </div>
+    </div>
+    <button class="gear-btn" id="settingsBtn" title="Connection settings" aria-label="Connection settings">⚙</button>
+  </header>
 
-<main>
-<section class="stats">
-  <div class="stat"><div class="label">Latest score</div><div class="value" id="latest">—</div><div class="sub" id="latestSub">—</div></div>
-  <div class="stat"><div class="label">Average</div><div class="value" id="average">—</div><div class="sub" id="averageSub">—</div></div>
-  <div class="stat"><div class="label">Best score</div><div class="value" id="best">—</div><div class="sub" id="bestSub">—</div></div>
-  <div class="stat"><div class="label">Tests recorded</div><div class="value" id="count">—</div><div class="sub">of 60 tests</div></div>
-</section>
-
-<section class="card">
-  <h2 id="chartTitle">Marks trend</h2>
-  <div class="chart"><canvas id="chart"></canvas></div>
-</section>
-
-<section class="card">
-  <h2>Manual data entry</h2>
-  <div class="entry">
-    <label>Test #<input id="testNo" type="number" min="1" max="60" placeholder="26"></label>
-    <label>Date<input id="date" type="date"></label>
-    <label>Physics<input id="physics" type="number" min="0" max="100" placeholder="0–100"></label>
-    <label>Chemistry<input id="chemistry" type="number" min="0" max="100" placeholder="0–100"></label>
-    <label>Maths<input id="maths" type="number" min="0" max="100" placeholder="0–100"></label>
-    <label>Rank<input id="rank" type="number" min="1" placeholder="optional"></label>
+  <div class="tabbar" id="studentTabs"></div>
+  <div class="tabbar subjects" id="subjectTabs">
+    <button class="tab active" data-subject="physics">Physics</button>
+    <button class="tab" data-subject="chemistry">Chemistry</button>
+    <button class="tab" data-subject="maths">Maths</button>
+    <button class="tab" data-subject="consolidated">Consolidated</button>
   </div>
-  <div class="actions">
-    <button class="primary" id="save">Save mock to GitHub</button>
-    <button class="secondary" id="clear">Clear</button>
-    <span class="message" id="saveMsg"></span>
-  </div>
-  <div class="message" style="margin-top:8px">
-    Your Flask backend currently protects POST requests with <code>X-API-Key</code>.
-    Enter that key below once per browser.
-    <input id="apiKey" type="password" placeholder="API write key" style="max-width:220px;margin-left:8px;padding:7px;border:1px solid var(--border);border-radius:6px">
-  </div>
-</section>
 
-<section class="card">
-  <h2 id="tableTitle">Test-wise scorecard</h2>
-  <div class="scroll">
-    <table>
-      <thead><tr><th>Test</th><th>Date</th><th class="num">Marks</th><th class="num">Max</th><th>Percentage</th><th>Trend</th></tr></thead>
-      <tbody id="table"></tbody>
-    </table>
+  <div id="content"></div>
+
+  <details class="admin">
+    <summary>Add student / record a score</summary>
+    <div class="admin-body">
+      <div class="admin-block">
+        <h4>New student</h4>
+        <div class="field"><label>Student ID</label><input id="ns-id" placeholder="e.g. rohan01" /></div>
+        <div class="field"><label>Name</label><input id="ns-name" placeholder="e.g. Rohan Mehta" /></div>
+        <button class="btn primary" id="ns-submit">Add student</button>
+        <div class="admin-msg" id="ns-msg"></div>
+      </div>
+      <div class="admin-block">
+        <h4>Record a score</h4>
+        <div class="field"><label>Student ID</label><input id="sc-student" placeholder="e.g. rohan01" /></div>
+        <div class="field"><label>Test no.</label><input id="sc-testno" type="number" min="1" placeholder="e.g. 14" /></div>
+        <div class="field"><label>Subject</label><input id="sc-subject" placeholder="physics / chemistry / maths / consolidated" /></div>
+        <div class="field"><label>Marks</label><input id="sc-marks" type="number" step="any" placeholder="e.g. 78" /></div>
+        <button class="btn primary" id="sc-submit">Save score</button>
+        <div class="admin-msg" id="sc-msg"></div>
+      </div>
+    </div>
+  </details>
+
+  <footer class="note">Data is read from the mock‑test tracker API. Use the gear icon to point this page at your deployment.</footer>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h3>Connection settings</h3>
+    <p class="hint">Point this page at your API, and optionally store a write key so the forms below can save data.</p>
+    <div class="field">
+      <label>API base URL</label>
+      <input id="cfg-base" placeholder="https://your-app.example.com (leave blank if same origin)" />
+    </div>
+    <div class="field">
+      <label>Write key (X‑API‑Key)</label>
+      <input id="cfg-key" placeholder="only needed to add students / scores" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cfg-cancel">Cancel</button>
+      <button class="btn primary" id="cfg-save">Save</button>
+    </div>
   </div>
-</section>
-</main>
+</div>
 
 <script>
-const A={
- physics:{color:'#3A6EA5',bg:'#E9F0F8'},
- chemistry:{color:'#3F8F6B',bg:'#E9F5EF'},
- maths:{color:'#C4682B',bg:'#FBEEE3'},
- consolidated:{color:'#7A5C9E',bg:'#F1EBF6'}
-};
-let S={students:[],student:null,subject:'physics',scores:[],chart:null};
+(function(){
+  "use strict";
 
-const $=id=>document.getElementById(id);
-const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const label=s=>s[0].toUpperCase()+s.slice(1);
+  const SUBJECT_MAX = { physics:100, chemistry:100, maths:100, consolidated:300 };
+  const SUBJECT_LABEL = { physics:"Physics", chemistry:"Chemistry", maths:"Maths", consolidated:"Consolidated" };
 
-function accent(){
- const a=A[S.subject];
- document.documentElement.style.setProperty('--accent',a.color);
- document.documentElement.style.setProperty('--accentbg',a.bg);
-}
+  const state = {
+    apiBase: localStorage.getItem("jee_api_base") || "",
+    writeKey: localStorage.getItem("jee_write_key") || "",
+    students: [],
+    currentStudent: null,
+    currentSubject: "physics",
+  };
 
-async function api(url,options={}){
- const r=await fetch(url,options);
- let body=null;
- try{body=await r.json()}catch{}
- if(!r.ok) throw new Error(body?.error||`HTTP ${r.status}`);
- return body;
-}
+  const el = (id) => document.getElementById(id);
 
-async function loadStudents(){
- try{
-   const data=await api('/api/students');
-   S.students=Array.isArray(data)?data:[];
-   $('students').innerHTML=S.students.map((s,i)=>`<button class="student ${i===0?'active':''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('');
-   $('status').textContent=`${S.students.length} student(s)`;
-   if(S.students.length){S.student=S.students[0].id;loadScores()}
-   else renderEmpty('No students found.');
- }catch(e){$('status').textContent='API error';renderEmpty(`Could not load students: ${e.message}`)}
-}
+  function apiUrl(path){
+    return (state.apiBase || "") + path;
+  }
 
-$('students').addEventListener('click',e=>{
- const b=e.target.closest('.student');if(!b)return;
- document.querySelectorAll('.student').forEach(x=>x.classList.remove('active'));
- b.classList.add('active');S.student=b.dataset.id;loadScores();
-});
+  async function apiGet(path){
+    const res = await fetch(apiUrl(path));
+    const body = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(body.error || ("Request failed (" + res.status + ")"));
+    return body;
+  }
 
-$('tabs').addEventListener('click',e=>{
- const b=e.target.closest('.tab');if(!b)return;
- document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
- b.classList.add('active');S.subject=b.dataset.subject;accent();loadScores();
-});
+  async function apiPost(path, payload){
+    const res = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": state.writeKey,
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(body.error || ("Request failed (" + res.status + ")"));
+    return body;
+  }
 
-function renderEmpty(msg){
- $('table').innerHTML=`<tr><td colspan="6" class="empty">${esc(msg)}</td></tr>`;
- $('latest').textContent=$('average').textContent=$('best').textContent=$('count').textContent='—';
- if(S.chart){S.chart.destroy();S.chart=null}
-}
+  // ---------------- Settings modal ----------------
+  el("settingsBtn").addEventListener("click", () => {
+    el("cfg-base").value = state.apiBase;
+    el("cfg-key").value = state.writeKey;
+    el("settingsOverlay").classList.add("open");
+  });
+  el("cfg-cancel").addEventListener("click", () => el("settingsOverlay").classList.remove("open"));
+  el("settingsOverlay").addEventListener("click", (e) => { if(e.target.id === "settingsOverlay") el("settingsOverlay").classList.remove("open"); });
+  el("cfg-save").addEventListener("click", () => {
+    state.apiBase = el("cfg-base").value.trim().replace(/\/$/, "");
+    state.writeKey = el("cfg-key").value.trim();
+    localStorage.setItem("jee_api_base", state.apiBase);
+    localStorage.setItem("jee_write_key", state.writeKey);
+    el("settingsOverlay").classList.remove("open");
+    loadStudents();
+  });
 
-async function loadScores(){
- if(!S.student)return;
- $('table').innerHTML='<tr><td colspan="6" class="empty">Loading…</td></tr>';
- $('chartTitle').textContent=`${label(S.subject)} — marks trend`;
- $('tableTitle').textContent=`${label(S.subject)} — test-wise scorecard`;
- try{
-   const data=await api(`/api/scores?student=${encodeURIComponent(S.student)}&subject=${encodeURIComponent(S.subject)}`);
-   S.scores=Array.isArray(data)?data:[];
-   render();
- }catch(e){renderEmpty(`Could not load scores: ${e.message}`)}
-}
+  // ---------------- Students ----------------
+  async function loadStudents(){
+    const container = el("studentTabs");
+    container.innerHTML = '<span style="color:var(--ink-faint); font-size:13px; padding:8px 0;">Loading students…</span>';
+    try{
+      const students = await apiGet("/api/students");
+      state.students = students;
+      renderStudentTabs();
+      if(students.length){
+        state.currentStudent = state.currentStudent && students.some(s => s.id === state.currentStudent)
+          ? state.currentStudent : students[0].id;
+        loadScores();
+      } else {
+        state.currentStudent = null;
+        renderEmpty("No students yet", "Add a student below to start tracking their mock‑test marks.");
+      }
+    } catch(err){
+      container.innerHTML = "";
+      renderError("Could not load students", err.message);
+    }
+  }
 
-function render(){
- const real=S.scores.filter(x=>!x.cumulative);
- $('count').textContent=real.length;
- if(!real.length){renderEmpty('No scores recorded yet.');return}
- const latest=real[real.length-1], marks=real.map(x=>Number(x.marks));
- const avg=marks.reduce((a,b)=>a+b,0)/marks.length;
- const best=Math.max(...marks);
- $('latest').textContent=`${latest.marks}/${latest.max_marks}`;
- $('latestSub').textContent=`Test ${latest.test_no}`;
- $('average').textContent=avg.toFixed(1);
- $('averageSub').textContent=`${(avg/Number(real[0].max_marks)*100).toFixed(1)}% avg`;
- $('best').textContent=`${best}`;
- $('bestSub').textContent=`Test ${real.find(x=>Number(x.marks)===best).test_no}`;
- renderTable();
- renderChart(real);
-}
+  function renderStudentTabs(){
+    const container = el("studentTabs");
+    container.innerHTML = "";
+    state.students.forEach(s => {
+      const btn = document.createElement("button");
+      btn.className = "tab" + (s.id === state.currentStudent ? " active" : "");
+      btn.textContent = s.name;
+      btn.addEventListener("click", () => {
+        state.currentStudent = s.id;
+        renderStudentTabs();
+        loadScores();
+      });
+      container.appendChild(btn);
+    });
+  }
 
-function renderTable(){
- let html='';
- let prev=null;
- for(const x of S.scores){
-   if(x.cumulative){
-     html+=`<tr class="cum"><td colspan="6">10-test average · ${esc(x.tests_covered||'')}</td></tr>`;
-     continue;
-   }
-   const pct=Number(x.marks)/Number(x.max_marks)*100;
-   let trend='—',cls='';
-   if(prev!==null){if(x.marks>prev){trend='▲';cls='ok'}else if(x.marks<prev){trend='▼';cls='danger'}else{trend='→'}}
-   prev=Number(x.marks);
-   html+=`<tr><td>#${x.test_no}</td><td>${esc(x.date||'—')}</td><td class="num"><b>${x.marks}</b></td><td class="num">${x.max_marks}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><div class="fill" style="width:${Math.min(100,pct)}%"></div></div><span>${pct.toFixed(1)}%</span></div></td><td class="${cls}">${trend}</td></tr>`;
- }
- $('table').innerHTML=html;
-}
+  // ---------------- Subjects ----------------
+  el("subjectTabs").addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab");
+    if(!btn) return;
+    document.querySelectorAll("#subjectTabs .tab").forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    state.currentSubject = btn.dataset.subject;
+    loadScores();
+  });
 
-function renderChart(real){
- const ctx=$('chart').getContext('2d');
- if(S.chart)S.chart.destroy();
- S.chart=new Chart(ctx,{
-   type:'line',
-   data:{labels:real.map(x=>`T${x.test_no}`),datasets:[{data:real.map(x=>x.marks),borderColor:A[S.subject].color,backgroundColor:A[S.subject].bg,borderWidth:2,tension:.25,fill:true,pointRadius:3}]},
-   options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,suggestedMax:100}}}
- });
-}
+  // ---------------- Scores / rendering ----------------
+  async function loadScores(){
+    if(!state.currentStudent) return;
+    const content = el("content");
+    content.innerHTML = '<div class="state"><h3>Fetching marks…</h3><p>Pulling ' + SUBJECT_LABEL[state.currentSubject] + ' scores from the tracker.</p></div>';
+    try{
+      const rows = await apiGet("/api/scores?student=" + encodeURIComponent(state.currentStudent) + "&subject=" + state.currentSubject);
+      renderResults(rows);
+    } catch(err){
+      renderError("Could not load scores", err.message);
+    }
+  }
 
-function clearForm(){
- ['testNo','date','physics','chemistry','maths','rank'].forEach(id=>$(id).value='');
- $('saveMsg').textContent='';
-}
+  function renderEmpty(title, msg){
+    el("content").innerHTML = '<div class="state"><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(msg) + '</p></div>';
+  }
+  function renderError(title, msg){
+    el("content").innerHTML = '<div class="state error"><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(msg) + '</p></div>';
+  }
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
 
-$('clear').onclick=clearForm;
+  function renderResults(rows){
+    const content = el("content");
+    const testRows = rows.filter(r => !r.cumulative);
+    const milestoneRows = rows.filter(r => r.cumulative);
 
-$('save').onclick=async()=>{
- const msg=$('saveMsg');msg.className='message';msg.textContent='Saving…';
- const key=$('apiKey').value.trim();
- const testNo=Number($('testNo').value);
- const p=$('physics').value, c=$('chemistry').value, m=$('maths').value, rank=$('rank').value;
- if(!S.student){msg.textContent='No student selected';msg.className='message danger';return}
- if(!key){msg.textContent='Enter your API write key';msg.className='message danger';return}
- if(!Number.isInteger(testNo)||testNo<1||testNo>60){msg.textContent='Test number must be 1–60';msg.className='message danger';return}
- if(p===''||c===''||m===''){msg.textContent='Enter Physics, Chemistry and Maths';msg.className='message danger';return}
- if([p,c,m].some(v=>Number(v)<0||Number(v)>100)){msg.textContent='Subject marks must be 0–100';msg.className='message danger';return}
- try{
-   const headers={'Content-Type':'application/json','X-API-Key':key};
-   const base={student:S.student,test_no:testNo,date:$('date').value||null};
-   for(const [subject,value] of [['physics',p],['chemistry',c],['maths',m]]){
-     const body={...base,subject,marks:Number(value)};
-     if(rank!=='')body.rank=Number(rank);
-     await api('/api/scores',{method:'POST',headers,body:JSON.stringify(body)});
-   }
-   localStorage.setItem('jee_api_key',key);
-   msg.textContent='Saved to GitHub ✓';msg.className='message ok';
-   await loadScores();
-   clearForm();
- }catch(e){msg.textContent=`Save failed: ${e.message}`;msg.className='message danger'}
-};
+    if(!testRows.length){
+      renderEmpty("No marks recorded", SUBJECT_LABEL[state.currentSubject] + " scores haven't been entered for this student yet.");
+      return;
+    }
 
-const storedKey=localStorage.getItem('jee_api_key');
-if(storedKey)$('apiKey').value=storedKey;
-accent();
-loadStudents();
+    content.innerHTML = "";
+    content.appendChild(buildStats(testRows));
+    content.appendChild(buildChart(testRows, milestoneRows));
+    content.appendChild(buildTable(rows));
+  }
+
+  function buildStats(testRows){
+    const wrap = document.createElement("div");
+    wrap.className = "stats";
+
+    const latest = testRows[testRows.length - 1];
+    const best = testRows.reduce((a,b) => (b.marks/b.max_marks > a.marks/a.max_marks ? b : a));
+    const avgPct = testRows.reduce((s,r) => s + (r.marks / r.max_marks) * 100, 0) / testRows.length;
+
+    let trendLabel = "—", trendClass = "";
+    if(testRows.length >= 6){
+      const lastFive = testRows.slice(-5);
+      const priorFive = testRows.slice(-10, -5);
+      if(priorFive.length){
+        const avg = arr => arr.reduce((s,r) => s + (r.marks/r.max_marks)*100, 0) / arr.length;
+        const diff = avg(lastFive) - avg(priorFive);
+        trendLabel = (diff >= 0 ? "+" : "") + diff.toFixed(1) + " pp";
+        trendClass = diff >= 0 ? "trend-up" : "trend-down";
+      }
+    }
+
+    const stats = [
+      { label: "Latest — Test " + latest.test_no, value: latest.marks + " / " + latest.max_marks },
+      { label: "Best — Test " + best.test_no, value: best.marks + " / " + best.max_marks },
+      { label: "Average", value: avgPct.toFixed(1) + "%" },
+      { label: "5‑test trend", value: trendLabel, cls: trendClass },
+    ];
+
+    stats.forEach(s => {
+      const card = document.createElement("div");
+      card.className = "stat";
+      card.innerHTML = '<div class="label">' + s.label + '</div><div class="value ' + (s.cls||"") + '">' + s.value + "</div>";
+      wrap.appendChild(card);
+    });
+    return wrap;
+  }
+
+  function buildChart(testRows, milestoneRows){
+    const card = document.createElement("div");
+    card.className = "chart-card";
+
+    const W = 1000, H = 320, padL = 44, padR = 20, padT = 16, padB = 30;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+
+    const maxTest = Math.max(...testRows.map(r => r.test_no));
+    const minTest = Math.min(1, Math.min(...testRows.map(r => r.test_no)));
+    const xScale = (t) => padL + ((t - minTest) / Math.max(1, (maxTest - minTest))) * plotW;
+    const yScale = (pct) => padT + plotH - (pct / 100) * plotH;
+
+    let gridLines = "", axisLabelsY = "";
+    [0,25,50,75,100].forEach(p => {
+      const y = yScale(p);
+      gridLines += '<line class="grid-line" x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '"></line>';
+      axisLabelsY += '<text class="axis-label" x="' + (padL - 8) + '" y="' + (y+3) + '" text-anchor="end">' + p + '%</text>';
+    });
+
+    let axisLabelsX = "";
+    for(let t = minTest; t <= maxTest; t += 10){
+      axisLabelsX += '<text class="axis-label" x="' + xScale(t) + '" y="' + (H - padB + 16) + '" text-anchor="middle">' + t + '</text>';
+    }
+    if(maxTest % 10 !== 0){
+      axisLabelsX += '<text class="axis-label" x="' + xScale(maxTest) + '" y="' + (H - padB + 16) + '" text-anchor="middle">' + maxTest + '</text>';
+    }
+
+    const points = testRows.map(r => {
+      const pct = (r.marks / r.max_marks) * 100;
+      return { x: xScale(r.test_no), y: yScale(pct), r };
+    });
+    const pathD = points.map((p,i) => (i===0?"M":"L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
+
+    let dots = "";
+    points.forEach(p => {
+      const pct = ((p.r.marks / p.r.max_marks) * 100).toFixed(1);
+      dots += '<circle class="data-dot" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.2">' +
+        '<title>Test ' + p.r.test_no + (p.r.date ? " (" + p.r.date + ")" : "") + ": " + p.r.marks + "/" + p.r.max_marks + " — " + pct + "%</title></circle>";
+    });
+
+    let checkpoints = "";
+    milestoneRows.forEach(m => {
+      const x = xScale(m.test_no);
+      const y = yScale(m.avg_percentage);
+      checkpoints +=
+        '<line class="grid-line" x1="' + x + '" y1="' + padT + '" x2="' + x + '" y2="' + (H-padB) + '" stroke-dasharray="2,3"></line>' +
+        '<rect class="checkpoint-dot" x="' + (x-5) + '" y="' + (y-5) + '" width="10" height="10" transform="rotate(45 ' + x + ' ' + y + ')">' +
+        '<title>Tests ' + m.tests_covered + ' average: ' + m.avg_marks + ' marks (' + m.avg_percentage + '%)</title></rect>' +
+        '<text class="avg-tick" x="' + x + '" y="' + (padT - 4) + '" text-anchor="middle">' + m.avg_percentage.toFixed(0) + '%</text>';
+    });
+
+    const svg =
+      '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Percentage scored by test number">' +
+      gridLines +
+      '<line class="axis-line" x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '"></line>' +
+      '<line class="axis-line" x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '"></line>' +
+      checkpoints +
+      '<path class="data-line" d="' + pathD + '"></path>' +
+      dots + axisLabelsY + axisLabelsX +
+      '</svg>';
+
+    card.innerHTML =
+      '<h2>' + SUBJECT_LABEL[state.currentSubject] + ' — score trend' +
+      '<span class="legend"><span><i class="line"></i>test %</span><span><i class="checkpoint"></i>10‑test avg</span></span></h2>' +
+      svg;
+    return card;
+  }
+
+  function buildTable(rows){
+    const card = document.createElement("div");
+    card.className = "table-card";
+    const showRank = state.currentSubject === "consolidated";
+
+    let thead = "<tr><th>Test</th><th>Date</th><th class='num'>Marks</th><th class='num'>Max</th><th class='num'>%</th>";
+    if(showRank) thead += "<th class='num'>Rank</th>";
+    thead += "</tr>";
+
+    let tbody = "";
+    rows.forEach(r => {
+      if(r.cumulative){
+        tbody += '<tr class="milestone-row"><td class="ms-label" colspan="' + (showRank?6:5) + '">' +
+          '10‑test average · tests ' + r.tests_covered + ' — ' +
+          r.avg_marks + ' marks avg (' + r.avg_percentage.toFixed(1) + '%)</td></tr>';
+      } else {
+        const pct = (r.marks / r.max_marks) * 100;
+        const pctClass = pct >= 60 ? "pct-good" : (pct < 40 ? "pct-bad" : "");
+        tbody += "<tr><td>" + r.test_no + "</td><td>" + (r.date || "—") + "</td>" +
+          "<td class='num'>" + r.marks + "</td><td class='num'>" + r.max_marks + "</td>" +
+          "<td class='num " + pctClass + "'>" + pct.toFixed(1) + "%</td>";
+        if(showRank) tbody += "<td class='num'>" + (r.rank != null ? r.rank : "—") + "</td>";
+        tbody += "</tr>";
+      }
+    });
+
+    card.innerHTML =
+      '<h2>' + SUBJECT_LABEL[state.currentSubject] + ' — test‑wise marks</h2>' +
+      '<div class="table-scroll"><table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+    return card;
+  }
+
+  // ---------------- Admin forms ----------------
+  el("ns-submit").addEventListener("click", async () => {
+    const msg = el("ns-msg");
+    msg.textContent = ""; msg.className = "admin-msg";
+    const id = el("ns-id").value.trim(), name = el("ns-name").value.trim();
+    if(!id || !name){ msg.textContent = "Enter both an ID and a name."; msg.className = "admin-msg err"; return; }
+    try{
+      await apiPost("/api/students", { id, name });
+      msg.textContent = "Added " + name + ".";
+      msg.className = "admin-msg ok";
+      el("ns-id").value = ""; el("ns-name").value = "";
+      loadStudents();
+    } catch(err){
+      msg.textContent = err.message;
+      msg.className = "admin-msg err";
+    }
+  });
+
+  el("sc-submit").addEventListener("click", async () => {
+    const msg = el("sc-msg");
+    msg.textContent = ""; msg.className = "admin-msg";
+    const student = el("sc-student").value.trim();
+    const test_no = el("sc-testno").value.trim();
+    const subject = el("sc-subject").value.trim().toLowerCase();
+    const marks = el("sc-marks").value.trim();
+    if(!student || !test_no || !subject || !marks){
+      msg.textContent = "Fill in student, test number, subject and marks.";
+      msg.className = "admin-msg err";
+      return;
+    }
+    try{
+      await apiPost("/api/scores", { student, test_no: Number(test_no), subject, marks: Number(marks) });
+      msg.textContent = "Saved test " + test_no + " (" + subject + ") for " + student + ".";
+      msg.className = "admin-msg ok";
+      if(student === state.currentStudent && subject === state.currentSubject) loadScores();
+    } catch(err){
+      msg.textContent = err.message;
+      msg.className = "admin-msg err";
+    }
+  });
+
+  // ---------------- Init ----------------
+  loadStudents();
+})();
 </script>
 </body>
 </html>
