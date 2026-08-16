@@ -1,34 +1,35 @@
 import base64
 import json
 import os
-from functools import wraps
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request
 
 
 # ============================================================
-# APP
+# FLASK APP
 # ============================================================
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder="../templates"
+)
 
 
 # ============================================================
-# CONFIG
+# GITHUB CONFIG
 # ============================================================
 
 GITHUB_API = "https://api.github.com"
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-GITHUB_REPO = os.environ.get("GITHUB_REPO")          # owner/repository
+GITHUB_REPO = os.environ.get("GITHUB_REPO")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
 GITHUB_DATA_PATH = os.environ.get(
     "GITHUB_DATA_PATH",
     "data/jee_data.json"
 )
 
-# Used to protect POST endpoints.
 API_WRITE_KEY = os.environ.get("API_WRITE_KEY")
 
 
@@ -43,52 +44,50 @@ VALID_SUBJECTS = {
     "consolidated",
 }
 
-SUBJECT_MAX_MARKS = {
+MAX_MARKS = {
     "physics": 100,
     "chemistry": 100,
     "maths": 100,
     "consolidated": 300,
 }
 
-EMPTY_DATA = {
-    "students": [],
-    "tests": [],
-}
+
+# ============================================================
+# FRONTEND
+# ============================================================
+
+@app.route("/")
+def home():
+    """
+    Main website.
+
+    Flask renders templates/index.html.
+    """
+
+    return render_template("index.html")
 
 
 # ============================================================
-# HELPERS
+# GITHUB HELPERS
 # ============================================================
-
-def github_configured():
-    return bool(GITHUB_TOKEN and GITHUB_REPO)
-
 
 def github_headers():
     return {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "X-GitHub-Api-Version": "2026-03-10",
+        "X-GitHub-Api-Version": "2022-11-28",
     }
 
 
-def github_file_url():
-    repo = GITHUB_REPO.strip().strip("/")
-
+def github_url():
     return (
-        f"{GITHUB_API}/repos/{repo}"
-        f"/contents/{GITHUB_DATA_PATH.lstrip('/')}"
+        f"https://api.github.com/repos/"
+        f"{GITHUB_REPO}/contents/"
+        f"{GITHUB_DATA_PATH}"
     )
 
 
-def json_error(message, status=400):
-    return jsonify({
-        "ok": False,
-        "error": message,
-    }), status
-
-
-def require_github_config():
+def check_github_config():
     missing = []
 
     if not GITHUB_TOKEN:
@@ -104,63 +103,34 @@ def require_github_config():
         )
 
 
-def require_write_key():
+def load_data():
     """
-    Protects endpoints that modify GitHub data.
-
-    Frontend/public users should NOT be given the GitHub token.
-    They would only need the API write key if you expose POST
-    requests from the frontend.
+    Download jee_data.json from GitHub.
     """
 
-    if not API_WRITE_KEY:
-        return json_error(
-            "API_WRITE_KEY is not configured on the server",
-            503,
-        )
-
-    supplied_key = request.headers.get("X-API-Key")
-
-    if supplied_key != API_WRITE_KEY:
-        return json_error("Unauthorized", 401)
-
-    return None
-
-
-def get_github_data():
-    """
-    Read data/jee_data.json from GitHub.
-
-    Returns:
-        data, sha
-
-    sha is needed by GitHub when updating the file.
-    """
-
-    require_github_config()
+    check_github_config()
 
     response = requests.get(
-        github_file_url(),
+        github_url(),
         headers=github_headers(),
         params={
-            "ref": GITHUB_BRANCH,
+            "ref": GITHUB_BRANCH
         },
         timeout=10,
     )
 
-    # File doesn't exist yet.
     if response.status_code == 404:
-        return json.loads(json.dumps(EMPTY_DATA)), None
+        return {
+            "students": [],
+            "tests": [],
+        }, None
 
     response.raise_for_status()
 
     payload = response.json()
 
-    content = payload.get("content", "")
-    sha = payload.get("sha")
-
-    if not content:
-        return json.loads(json.dumps(EMPTY_DATA)), sha
+    content = payload["content"]
+    sha = payload["sha"]
 
     decoded = base64.b64decode(
         content.replace("\n", "")
@@ -168,137 +138,78 @@ def get_github_data():
 
     data = json.loads(decoded)
 
-    # Protect against malformed/empty JSON structures.
-    if not isinstance(data, dict):
-        raise RuntimeError("GitHub data file must contain a JSON object")
-
     data.setdefault("students", [])
     data.setdefault("tests", [])
 
     return data, sha
 
 
-def save_github_data(data, sha, commit_message):
+def save_data(data, sha, message):
     """
-    Create/update the JSON file in GitHub.
-
-    If another request changed the file between our GET and PUT,
-    GitHub can return 409. We re-read the SHA and retry once.
+    Upload updated jee_data.json to GitHub.
     """
 
-    require_github_config()
+    check_github_config()
 
-    body = json.dumps(
+    content = json.dumps(
         data,
         indent=2,
         ensure_ascii=False,
     ) + "\n"
 
     encoded = base64.b64encode(
-        body.encode("utf-8")
-    ).decode("ascii")
+        content.encode("utf-8")
+    ).decode("utf-8")
 
-    current_sha = sha
+    payload = {
+        "message": message,
+        "content": encoded,
+        "branch": GITHUB_BRANCH,
+    }
 
-    for attempt in range(2):
+    if sha:
+        payload["sha"] = sha
 
-        payload = {
-            "message": commit_message,
-            "content": encoded,
-            "branch": GITHUB_BRANCH,
-        }
-
-        if current_sha:
-            payload["sha"] = current_sha
-
-        response = requests.put(
-            github_file_url(),
-            headers=github_headers(),
-            json=payload,
-            timeout=15,
-        )
-
-        if response.status_code in (200, 201):
-            return response.json()
-
-        # Somebody changed the file between GET and PUT.
-        if response.status_code == 409 and attempt == 0:
-            _, current_sha = get_github_data()
-            continue
-
-        response.raise_for_status()
-
-    raise RuntimeError("Could not update GitHub data file")
-
-
-def find_student(data, student_id):
-    for student in data.get("students", []):
-        if str(student.get("id")) == str(student_id):
-            return student
-
-    return None
-
-
-def find_test(data, test_no):
-    for test in data.get("tests", []):
-        if int(test.get("test_no")) == int(test_no):
-            return test
-
-    return None
-
-
-def clean_number(value):
-    """
-    Keep integers as integers in JSON responses.
-
-    72.0 -> 72
-    72.5 -> 72.5
-    """
-
-    if isinstance(value, float) and value.is_integer():
-        return int(value)
-
-    return value
-
-
-def calculate_total(record):
-    subjects = ("physics", "chemistry", "maths")
-
-    if not all(record.get(subject) is not None for subject in subjects):
-        return None
-
-    return clean_number(
-        record["physics"]
-        + record["chemistry"]
-        + record["maths"]
+    response = requests.put(
+        github_url(),
+        headers=github_headers(),
+        json=payload,
+        timeout=15,
     )
 
+    response.raise_for_status()
+
+    return response.json()
+
 
 # ============================================================
-# ERROR HANDLERS
+# AUTH FOR WRITE REQUESTS
 # ============================================================
 
-@app.errorhandler(404)
-def not_found(_error):
-    return json_error("Endpoint not found", 404)
+def check_write_key():
 
+    if not API_WRITE_KEY:
+        return jsonify({
+            "error": "API_WRITE_KEY is not configured"
+        }), 503
 
-@app.errorhandler(405)
-def method_not_allowed(_error):
-    return json_error("Method not allowed", 405)
+    provided = request.headers.get("X-API-Key")
 
+    if provided != API_WRITE_KEY:
+        return jsonify({
+            "error": "Unauthorized"
+        }), 401
 
-@app.errorhandler(500)
-def internal_error(_error):
-    return json_error("Internal server error", 500)
+    return None
 
 
 # ============================================================
 # HEALTH
 # ============================================================
 
-@app.route("/api/health", methods=["GET"])
+@app.route("/api/health")
 def health():
+
     missing = []
 
     if not GITHUB_TOKEN:
@@ -309,9 +220,8 @@ def health():
 
     return jsonify({
         "ok": len(missing) == 0,
-        "service": "jee-marks-analyser",
         "github_configured": len(missing) == 0,
-        "missing_config": missing,
+        "missing": missing,
     })
 
 
@@ -321,133 +231,93 @@ def health():
 
 @app.route("/api/students", methods=["GET"])
 def get_students():
+
     try:
-        data, _ = get_github_data()
 
-        students = []
+        data, _ = load_data()
 
-        for student in data.get("students", []):
-            students.append({
+        students = [
+            {
                 "id": student["id"],
                 "name": student["name"],
-            })
+            }
+            for student in data["students"]
+        ]
 
         return jsonify(students)
 
-    except requests.RequestException:
-        return json_error(
-            "Could not communicate with GitHub",
-            502,
-        )
+    except Exception as error:
 
-    except Exception as exc:
-        return json_error(str(exc), 500)
+        return jsonify({
+            "error": str(error)
+        }), 500
 
 
 @app.route("/api/students", methods=["POST"])
-def create_student():
-    auth_error = require_write_key()
+def add_student():
+
+    auth_error = check_write_key()
 
     if auth_error:
         return auth_error
 
-    body = request.get_json(silent=True)
+    body = request.get_json(
+        silent=True
+    ) or {}
 
-    if not isinstance(body, dict):
-        return json_error("Request body must be JSON")
+    student_id = str(
+        body.get("id", "")
+    ).strip()
 
-    student_id = str(body.get("id", "")).strip()
-    name = str(body.get("name", "")).strip()
+    name = str(
+        body.get("name", "")
+    ).strip()
 
     if not student_id:
-        return json_error("id is required")
+        return jsonify({
+            "error": "id is required"
+        }), 400
 
     if not name:
-        return json_error("name is required")
-
-    if len(student_id) > 100:
-        return json_error("id is too long")
-
-    if len(name) > 200:
-        return json_error("name is too long")
+        return jsonify({
+            "error": "name is required"
+        }), 400
 
     try:
-        data, sha = get_github_data()
 
-        if find_student(data, student_id):
-            return json_error(
-                "Student already exists",
-                409,
-            )
+        data, sha = load_data()
 
-        data.setdefault("students", []).append({
+        for student in data["students"]:
+
+            if student["id"] == student_id:
+
+                return jsonify({
+                    "error": "Student already exists"
+                }), 409
+
+        student = {
             "id": student_id,
             "name": name,
-        })
+        }
 
-        data["students"].sort(
-            key=lambda student: student["name"].lower()
-        )
+        data["students"].append(student)
 
-        save_github_data(
+        save_data(
             data,
             sha,
-            f"Add student: {name}",
+            f"Add student: {name}"
         )
 
         return jsonify({
             "ok": True,
-            "student": {
-                "id": student_id,
-                "name": name,
-            },
+            "student": student,
         }), 201
 
-    except requests.RequestException:
-        return json_error(
-            "Could not communicate with GitHub",
-            502,
-        )
+    except Exception as error:
 
-    except Exception as exc:
-        return json_error(str(exc), 500)
-
-
-# ============================================================
-# TEST METADATA
-# ============================================================
-
-@app.route("/api/tests", methods=["GET"])
-def get_tests():
-    try:
-        data, _ = get_github_data()
-
-        tests = []
-
-        for test in sorted(
-            data.get("tests", []),
-            key=lambda item: item["test_no"],
-        ):
-            tests.append({
-                "test_no": test["test_no"],
-                "date": test.get("date"),
-                "name": test.get("name"),
-                "max_marks": test.get(
-                    "max_marks",
-                    300,
-                ),
-            })
-
-        return jsonify(tests)
-
-    except requests.RequestException:
-        return json_error(
-            "Could not communicate with GitHub",
-            502,
-        )
-
-    except Exception as exc:
-        return json_error(str(exc), 500)
+        return jsonify({
+            "error": str(error)
+        }), 500
 
 
 # ============================================================
@@ -456,118 +326,128 @@ def get_tests():
 
 @app.route("/api/scores", methods=["GET"])
 def get_scores():
+
     student_id = request.args.get(
         "student",
-        "",
+        ""
     ).strip()
 
     subject = request.args.get(
         "subject",
-        "consolidated",
+        "consolidated"
     ).strip().lower()
 
     if not student_id:
-        return json_error(
-            "student query parameter is required"
-        )
+
+        return jsonify({
+            "error": "student is required"
+        }), 400
 
     if subject not in VALID_SUBJECTS:
-        return json_error(
-            "subject must be one of: "
-            "physics, chemistry, maths, consolidated"
-        )
+
+        return jsonify({
+            "error": "Invalid subject"
+        }), 400
 
     try:
-        data, _ = get_github_data()
 
-        student = find_student(
-            data,
-            student_id,
+        data, _ = load_data()
+
+        student_exists = any(
+            student["id"] == student_id
+            for student in data["students"]
         )
 
-        if not student:
-            return json_error(
-                "Student not found",
-                404,
-            )
+        if not student_exists:
 
-        result = []
+            return jsonify({
+                "error": "Student not found"
+            }), 404
 
-        sorted_tests = sorted(
-            data.get("tests", []),
-            key=lambda item: item["test_no"],
+        results = []
+
+        tests = sorted(
+            data["tests"],
+            key=lambda test: test["test_no"]
         )
 
-        for test in sorted_tests:
+        for test in tests:
 
-            test_no = test["test_no"]
-
-            students_data = test.get(
+            record = test.get(
                 "students",
-                {},
-            )
-
-            record = students_data.get(
+                {}
+            ).get(
                 student_id,
-                {},
+                {}
             )
 
             if subject == "consolidated":
 
                 marks = record.get("total")
 
-                # Automatically calculate total if all three
-                # subject scores exist.
                 if marks is None:
-                    marks = calculate_total(record)
+
+                    subjects = [
+                        record.get("physics"),
+                        record.get("chemistry"),
+                        record.get("maths"),
+                    ]
+
+                    if all(
+                        value is not None
+                        for value in subjects
+                    ):
+
+                        marks = sum(subjects)
 
                 max_marks = 300
 
             else:
 
                 marks = record.get(subject)
-                max_marks = 100
+
+                max_marks = MAX_MARKS[subject]
 
             if marks is None:
                 continue
 
-            entry = {
-                "test_no": test_no,
+            result = {
+                "test_no": test["test_no"],
                 "date": test.get("date"),
-                "marks": clean_number(marks),
+                "marks": marks,
                 "max_marks": max_marks,
                 "cumulative": False,
             }
 
-            # Rank belongs to the overall/consolidated result.
             if (
                 subject == "consolidated"
                 and record.get("rank") is not None
             ):
-                entry["rank"] = clean_number(
-                    record["rank"]
-                )
 
-            result.append(entry)
+                result["rank"] = record["rank"]
+
+            results.append(result)
 
         # ----------------------------------------------------
-        # Insert 10-test average checkpoints.
-        #
-        # The supplied frontend expects a cumulative object
-        # after tests 10, 20, 30, etc.
+        # 10-test average rows
         # ----------------------------------------------------
 
-        final_result = []
+        final_results = []
 
-        for index, entry in enumerate(result, start=1):
+        for index, result in enumerate(
+            results,
+            start=1
+        ):
 
-            final_result.append(entry)
+            final_results.append(result)
 
             if index % 10 == 0:
 
-                window = result[index - 10:index]
+                window = results[
+                    index - 10:index
+                ]
 
-                avg_marks = (
+                average_marks = (
                     sum(
                         item["marks"]
                         for item in window
@@ -575,7 +455,7 @@ def get_scores():
                     / len(window)
                 )
 
-                avg_percentage = (
+                average_percentage = (
                     sum(
                         (
                             item["marks"]
@@ -586,34 +466,35 @@ def get_scores():
                     / len(window)
                 )
 
-                final_result.append({
-                    "test_no": entry["test_no"],
+                final_results.append({
+
+                    "test_no": result["test_no"],
+
                     "cumulative": True,
+
                     "avg_marks": round(
-                        avg_marks,
-                        2,
+                        average_marks,
+                        2
                     ),
+
                     "avg_percentage": round(
-                        avg_percentage,
-                        2,
+                        average_percentage,
+                        2
                     ),
-                    "tests_covered": (
+
+                    "tests_covered":
                         f"{window[0]['test_no']}"
                         f"-"
-                        f"{window[-1]['test_no']}"
-                    ),
+                        f"{window[-1]['test_no']}",
                 })
 
-        return jsonify(final_result)
+        return jsonify(final_results)
 
-    except requests.RequestException:
-        return json_error(
-            "Could not communicate with GitHub",
-            502,
-        )
+    except Exception as error:
 
-    except Exception as exc:
-        return json_error(str(exc), 500)
+        return jsonify({
+            "error": str(error)
+        }), 500
 
 
 # ============================================================
@@ -621,16 +502,16 @@ def get_scores():
 # ============================================================
 
 @app.route("/api/scores", methods=["POST"])
-def create_or_update_score():
-    auth_error = require_write_key()
+def save_score():
+
+    auth_error = check_write_key()
 
     if auth_error:
         return auth_error
 
-    body = request.get_json(silent=True)
-
-    if not isinstance(body, dict):
-        return json_error("Request body must be JSON")
+    body = request.get_json(
+        silent=True
+    ) or {}
 
     student_id = str(
         body.get("student", "")
@@ -641,79 +522,60 @@ def create_or_update_score():
     ).strip().lower()
 
     if not student_id:
-        return json_error(
-            "student is required"
-        )
+
+        return jsonify({
+            "error": "student is required"
+        }), 400
 
     if subject not in VALID_SUBJECTS:
-        return json_error(
-            "subject must be one of: "
-            "physics, chemistry, maths, consolidated"
-        )
 
-    # --------------------------------------------------------
-    # Test number
-    # --------------------------------------------------------
+        return jsonify({
+            "error": "Invalid subject"
+        }), 400
 
     try:
-        test_no = int(body.get("test_no"))
+
+        test_no = int(
+            body.get("test_no")
+        )
+
     except (TypeError, ValueError):
-        return json_error(
-            "test_no must be an integer"
-        )
 
-    if test_no < 1:
-        return json_error(
-            "test_no must be >= 1"
-        )
-
-    # --------------------------------------------------------
-    # Marks
-    # --------------------------------------------------------
+        return jsonify({
+            "error": "test_no must be an integer"
+        }), 400
 
     try:
-        marks = float(body.get("marks"))
-    except (TypeError, ValueError):
-        return json_error(
-            "marks must be a number"
+
+        marks = float(
+            body.get("marks")
         )
+
+    except (TypeError, ValueError):
+
+        return jsonify({
+            "error": "marks must be a number"
+        }), 400
+
+    max_marks = float(
+        body.get(
+            "max_marks",
+            MAX_MARKS[subject]
+        )
+    )
 
     if marks < 0:
-        return json_error(
-            "marks cannot be negative"
-        )
 
-    # --------------------------------------------------------
-    # Maximum marks
-    # --------------------------------------------------------
-
-    default_max = SUBJECT_MAX_MARKS[subject]
-
-    try:
-        max_marks = float(
-            body.get(
-                "max_marks",
-                default_max,
-            )
-        )
-    except (TypeError, ValueError):
-        return json_error(
-            "max_marks must be a number"
-        )
-
-    if max_marks <= 0:
-        return json_error(
-            "max_marks must be greater than zero"
-        )
+        return jsonify({
+            "error": "marks cannot be negative"
+        }), 400
 
     if marks > max_marks:
-        return json_error(
-            "marks cannot be greater than max_marks"
-        )
 
-    # --------------------------------------------------------
-    # Rank
-    # --------------------------------------------------------
+        return jsonify({
+            "error":
+                "marks cannot exceed max_marks"
+        }), 400
 
     rank = body.get("rank")
 
@@ -721,66 +583,59 @@ def create_or_update_score():
 
         try:
             rank = float(rank)
+
         except (TypeError, ValueError):
-            return json_error(
-                "rank must be a number"
-            )
 
-        if rank <= 0:
-            return json_error(
-                "rank must be greater than zero"
-            )
-
-    # --------------------------------------------------------
-    # Date / test metadata
-    # --------------------------------------------------------
-
-    date = body.get("date")
-    test_name = body.get("test_name")
+            return jsonify({
+                "error": "rank must be a number"
+            }), 400
 
     try:
-        data, sha = get_github_data()
 
-        # Student must exist.
-        if not find_student(
-            data,
-            student_id,
-        ):
-            return json_error(
-                "Student not found",
-                404,
-            )
+        data, sha = load_data()
 
-        # Find existing test or create it.
-        test = find_test(
-            data,
-            test_no,
+        student_exists = any(
+            student["id"] == student_id
+            for student in data["students"]
         )
 
+        if not student_exists:
+
+            return jsonify({
+                "error": "Student not found"
+            }), 404
+
+        # Find test.
+        test = next(
+            (
+                test
+                for test in data["tests"]
+                if test["test_no"] == test_no
+            ),
+            None
+        )
+
+        # Create test if needed.
         if test is None:
 
             test = {
                 "test_no": test_no,
-                "date": date,
-                "name": test_name,
+                "date": body.get("date"),
+                "name": body.get("test_name"),
                 "max_marks": 300,
                 "students": {},
             }
 
-            data.setdefault(
-                "tests",
-                []
-            ).append(test)
+            data["tests"].append(test)
 
         else:
 
-            if date is not None:
-                test["date"] = date
+            if body.get("date") is not None:
+                test["date"] = body["date"]
 
-            if test_name is not None:
-                test["name"] = test_name
+            if body.get("test_name") is not None:
+                test["name"] = body["test_name"]
 
-        # Make sure the students object exists.
         test.setdefault(
             "students",
             {}
@@ -791,59 +646,63 @@ def create_or_update_score():
             {}
         )
 
-        # ----------------------------------------------------
-        # Save subject marks / total
-        # ----------------------------------------------------
-
+        # Save marks.
         if subject == "consolidated":
 
-            record["total"] = clean_number(
-                marks
+            record["total"] = (
+                int(marks)
+                if marks.is_integer()
+                else marks
             )
-
-            if rank is not None:
-                record["rank"] = clean_number(
-                    rank
-                )
 
         else:
 
-            record[subject] = clean_number(
-                marks
+            record[subject] = (
+                int(marks)
+                if marks.is_integer()
+                else marks
             )
 
-            # Automatically calculate total whenever all
-            # three subjects have been entered.
-            calculated_total = calculate_total(
-                record
+        # Calculate total automatically.
+        if all(
+            record.get(subject) is not None
+            for subject in (
+                "physics",
+                "chemistry",
+                "maths",
+            )
+        ):
+
+            total = (
+                record["physics"]
+                + record["chemistry"]
+                + record["maths"]
             )
 
-            if calculated_total is not None:
-                record["total"] = calculated_total
+            record["total"] = total
 
-            # Rank is overall rank, so keep it on the
-            # student's test record.
-            if rank is not None:
-                record["rank"] = clean_number(
-                    rank
-                )
+        # Save rank.
+        if rank is not None:
 
-        # ----------------------------------------------------
-        # Keep tests ordered.
-        # ----------------------------------------------------
+            record["rank"] = (
+                int(rank)
+                if rank.is_integer()
+                else rank
+            )
 
         data["tests"].sort(
-            key=lambda item: item["test_no"]
+            key=lambda test:
+                test["test_no"]
         )
 
-        save_github_data(
+        save_data(
             data,
             sha,
             (
-                f"Update {student_id} · "
-                f"Test {test_no} · "
+                f"Update {student_id} "
+                f"Test {test_no} "
                 f"{subject}"
-            ),
+            )
         )
 
         return jsonify({
@@ -851,49 +710,26 @@ def create_or_update_score():
             "student": student_id,
             "test_no": test_no,
             "subject": subject,
-            "marks": clean_number(marks),
-            "rank": record.get("rank"),
+            "marks": marks,
             "total": record.get("total"),
-        }), 200
+            "rank": record.get("rank"),
+        })
 
-    except requests.RequestException:
-        return json_error(
-            "Could not communicate with GitHub",
-            502,
-        )
+    except Exception as error:
 
-    except Exception as exc:
-        return json_error(
-            str(exc),
-            500,
-        )
+        return jsonify({
+            "error": str(error)
+        }), 500
 
 
 # ============================================================
-# ROOT
-# ============================================================
-
-@app.route("/", methods=["GET"])
-def root():
-    return jsonify({
-        "service": "JEE Marks Analyser API",
-        "status": "online",
-        "endpoints": {
-            "health": "/api/health",
-            "students": "/api/students",
-            "tests": "/api/tests",
-            "scores": "/api/scores",
-        },
-    })
-
-
-# ============================================================
-# LOCAL DEVELOPMENT ONLY
+# LOCAL DEVELOPMENT
 # ============================================================
 
 if __name__ == "__main__":
+
     app.run(
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=5000,
         debug=True,
     )
