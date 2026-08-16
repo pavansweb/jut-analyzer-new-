@@ -103,7 +103,7 @@
 
   /* ---------- Stat strip ---------- */
   .stats{
-    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
     background:var(--rule-strong); border:1px solid var(--rule-strong);
     margin-bottom:22px; border-radius:var(--radius); overflow:hidden;
   }
@@ -256,17 +256,17 @@
     <div class="admin-body">
       <div class="admin-block">
         <h4>New student</h4>
-        <div class="field"><label>Student ID</label><input id="ns-id" placeholder="e.g. rohan01" /></div>
-        <div class="field"><label>Name</label><input id="ns-name" placeholder="e.g. Rohan Mehta" /></div>
+        <div class="field"><label>Student ID</label><input id="ns-id" placeholder="Enter student ID here" /></div>
+        <div class="field"><label>Name</label><input id="ns-name" placeholder="Enter student name here" /></div>
         <button class="btn primary" id="ns-submit">Add student</button>
         <div class="admin-msg" id="ns-msg"></div>
       </div>
       <div class="admin-block">
         <h4>Record a score</h4>
-        <div class="field"><label>Student ID</label><input id="sc-student" placeholder="e.g. rohan01" /></div>
-        <div class="field"><label>Test no.</label><input id="sc-testno" type="number" min="1" placeholder="e.g. 14" /></div>
+        <div class="field"><label>Student ID</label><input id="sc-student" placeholder="Enter student ID here" /></div>
+        <div class="field"><label>Test no.</label><input id="sc-testno" type="number" min="1" placeholder="Enter test number here" /></div>
         <div class="field"><label>Subject</label><input id="sc-subject" placeholder="physics / chemistry / maths / consolidated" /></div>
-        <div class="field"><label>Marks</label><input id="sc-marks" type="number" step="any" placeholder="e.g. 78" /></div>
+        <div class="field"><label>Marks</label><input id="sc-marks" type="number" step="any" placeholder="Enter marks here" /></div>
         <button class="btn primary" id="sc-submit">Save score</button>
         <div class="admin-msg" id="sc-msg"></div>
       </div>
@@ -446,25 +446,23 @@
     wrap.className = "stats";
 
     const latest = testRows[testRows.length - 1];
-    const best = testRows.reduce((a,b) => (b.marks/b.max_marks > a.marks/a.max_marks ? b : a));
-    const avgPct = testRows.reduce((s,r) => s + (r.marks / r.max_marks) * 100, 0) / testRows.length;
+    const avgMarks = testRows.reduce((s,r) => s + r.marks, 0) / testRows.length;
 
     let trendLabel = "—", trendClass = "";
     if(testRows.length >= 6){
       const lastFive = testRows.slice(-5);
       const priorFive = testRows.slice(-10, -5);
       if(priorFive.length){
-        const avg = arr => arr.reduce((s,r) => s + (r.marks/r.max_marks)*100, 0) / arr.length;
+        const avg = arr => arr.reduce((s,r) => s + r.marks, 0) / arr.length;
         const diff = avg(lastFive) - avg(priorFive);
-        trendLabel = (diff >= 0 ? "+" : "") + diff.toFixed(1) + " pp";
+        trendLabel = (diff >= 0 ? "+" : "") + diff.toFixed(1) + " marks";
         trendClass = diff >= 0 ? "trend-up" : "trend-down";
       }
     }
 
     const stats = [
-      { label: "Latest — Test " + latest.test_no, value: latest.marks + " / " + latest.max_marks },
-      { label: "Best — Test " + best.test_no, value: best.marks + " / " + best.max_marks },
-      { label: "Average", value: avgPct.toFixed(1) + "%" },
+      { label: "Latest — Test " + latest.test_no, value: String(latest.marks) },
+      { label: "Average marks", value: avgMarks.toFixed(1) },
       { label: "5‑test trend", value: trendLabel, cls: trendClass },
     ];
 
@@ -486,14 +484,15 @@
 
     const maxTest = Math.max(...testRows.map(r => r.test_no));
     const minTest = Math.min(1, Math.min(...testRows.map(r => r.test_no)));
+    const marksMax = Math.max(...testRows.map(r => r.max_marks));
     const xScale = (t) => padL + ((t - minTest) / Math.max(1, (maxTest - minTest))) * plotW;
-    const yScale = (pct) => padT + plotH - (pct / 100) * plotH;
+    const yScale = (marks) => padT + plotH - (marks / marksMax) * plotH;
 
     let gridLines = "", axisLabelsY = "";
-    [0,25,50,75,100].forEach(p => {
-      const y = yScale(p);
+    [0, marksMax*0.25, marksMax*0.5, marksMax*0.75, marksMax].forEach(m => {
+      const y = yScale(m);
       gridLines += '<line class="grid-line" x1="' + padL + '" y1="' + y + '" x2="' + (W-padR) + '" y2="' + y + '"></line>';
-      axisLabelsY += '<text class="axis-label" x="' + (padL - 8) + '" y="' + (y+3) + '" text-anchor="end">' + p + '%</text>';
+      axisLabelsY += '<text class="axis-label" x="' + (padL - 8) + '" y="' + (y+3) + '" text-anchor="end">' + Math.round(m) + '</text>';
     });
 
     let axisLabelsX = "";
@@ -505,31 +504,29 @@
     }
 
     const points = testRows.map(r => {
-      const pct = (r.marks / r.max_marks) * 100;
-      return { x: xScale(r.test_no), y: yScale(pct), r };
+      return { x: xScale(r.test_no), y: yScale(r.marks), r };
     });
     const pathD = points.map((p,i) => (i===0?"M":"L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
 
     let dots = "";
     points.forEach(p => {
-      const pct = ((p.r.marks / p.r.max_marks) * 100).toFixed(1);
       dots += '<circle class="data-dot" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.2">' +
-        '<title>Test ' + p.r.test_no + (p.r.date ? " (" + p.r.date + ")" : "") + ": " + p.r.marks + "/" + p.r.max_marks + " — " + pct + "%</title></circle>";
+        '<title>Test ' + p.r.test_no + ": " + p.r.marks + " marks</title></circle>";
     });
 
     let checkpoints = "";
     milestoneRows.forEach(m => {
       const x = xScale(m.test_no);
-      const y = yScale(m.avg_percentage);
+      const y = yScale(m.avg_marks);
       checkpoints +=
         '<line class="grid-line" x1="' + x + '" y1="' + padT + '" x2="' + x + '" y2="' + (H-padB) + '" stroke-dasharray="2,3"></line>' +
         '<rect class="checkpoint-dot" x="' + (x-5) + '" y="' + (y-5) + '" width="10" height="10" transform="rotate(45 ' + x + ' ' + y + ')">' +
-        '<title>Tests ' + m.tests_covered + ' average: ' + m.avg_marks + ' marks (' + m.avg_percentage + '%)</title></rect>' +
-        '<text class="avg-tick" x="' + x + '" y="' + (padT - 4) + '" text-anchor="middle">' + m.avg_percentage.toFixed(0) + '%</text>';
+        '<title>Tests ' + m.tests_covered + ' average: ' + m.avg_marks + ' marks</title></rect>' +
+        '<text class="avg-tick" x="' + x + '" y="' + (padT - 4) + '" text-anchor="middle">' + m.avg_marks.toFixed(0) + '</text>';
     });
 
     const svg =
-      '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Percentage scored by test number">' +
+      '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Marks scored by test number">' +
       gridLines +
       '<line class="axis-line" x1="' + padL + '" y1="' + (H-padB) + '" x2="' + (W-padR) + '" y2="' + (H-padB) + '"></line>' +
       '<line class="axis-line" x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (H-padB) + '"></line>' +
@@ -540,7 +537,7 @@
 
     card.innerHTML =
       '<h2>' + SUBJECT_LABEL[state.currentSubject] + ' — score trend' +
-      '<span class="legend"><span><i class="line"></i>test %</span><span><i class="checkpoint"></i>10‑test avg</span></span></h2>' +
+      '<span class="legend"><span><i class="line"></i>marks</span><span><i class="checkpoint"></i>10‑test avg</span></span></h2>' +
       svg;
     return card;
   }
@@ -550,22 +547,19 @@
     card.className = "table-card";
     const showRank = state.currentSubject === "consolidated";
 
-    let thead = "<tr><th>Test</th><th>Date</th><th class='num'>Marks</th><th class='num'>Max</th><th class='num'>%</th>";
+    let thead = "<tr><th>Test</th><th class='num'>Marks</th>";
     if(showRank) thead += "<th class='num'>Rank</th>";
     thead += "</tr>";
 
     let tbody = "";
     rows.forEach(r => {
       if(r.cumulative){
-        tbody += '<tr class="milestone-row"><td class="ms-label" colspan="' + (showRank?6:5) + '">' +
+        tbody += '<tr class="milestone-row"><td class="ms-label" colspan="' + (showRank?3:2) + '">' +
           '10‑test average · tests ' + r.tests_covered + ' — ' +
-          r.avg_marks + ' marks avg (' + r.avg_percentage.toFixed(1) + '%)</td></tr>';
+          r.avg_marks + ' marks avg</td></tr>';
       } else {
-        const pct = (r.marks / r.max_marks) * 100;
-        const pctClass = pct >= 60 ? "pct-good" : (pct < 40 ? "pct-bad" : "");
-        tbody += "<tr><td>" + r.test_no + "</td><td>" + (r.date || "—") + "</td>" +
-          "<td class='num'>" + r.marks + "</td><td class='num'>" + r.max_marks + "</td>" +
-          "<td class='num " + pctClass + "'>" + pct.toFixed(1) + "%</td>";
+        tbody += "<tr><td>" + r.test_no + "</td>" +
+          "<td class='num'>" + r.marks + "</td>";
         if(showRank) tbody += "<td class='num'>" + (r.rank != null ? r.rank : "—") + "</td>";
         tbody += "</tr>";
       }
